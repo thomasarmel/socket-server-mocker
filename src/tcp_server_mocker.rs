@@ -32,7 +32,8 @@ pub struct TcpServerMocker {
 /// ].as_slice()));
 /// client.write_all(&[1, 2, 3]).unwrap();
 ///
-/// assert_eq!(Some(vec![1, 2, 3]), tcp_server_mocker.pop_received_message());
+/// let mock_server_received_message = tcp_server_mocker.pop_received_message();
+/// assert_eq!(Some(vec![1, 2, 3]), mock_server_received_message);
 /// ```
 impl TcpServerMocker {
     /// Default timeout in milliseconds for the server to wait for a message from the client
@@ -50,8 +51,9 @@ impl TcpServerMocker {
         let (instruction_tx, instruction_rx) : (Sender<ServerMockerInstructionsList>, Receiver<ServerMockerInstructionsList>) = mpsc::channel();
         let (message_tx, message_rx) : (Sender<BinaryMessage>, Receiver<BinaryMessage>) = mpsc::channel();
 
+        let tcp_listener = TcpListener::bind(format!("127.0.0.1:{}", port)).unwrap();
+
         thread::spawn(move || {
-            let tcp_listener = TcpListener::bind(format!("127.0.0.1:{}", port)).unwrap();
             let tcp_stream = tcp_listener.accept().unwrap().0; // We need to manage only 1 client
             Self::handle_connection(tcp_stream, instruction_rx, message_tx);
         });
@@ -71,7 +73,6 @@ impl TcpServerMocker {
                 match instruction {
                     ServerMockerInstruction::SendMessage(binary_message) => {
                         tcp_stream.write_all(&binary_message).unwrap();
-                        println!("Sending packet: {:?}", binary_message);
                     },
                     ServerMockerInstruction::ReceiveMessage => {
                         let mut whole_received_packet : Vec<u8> = Vec::new();
@@ -109,14 +110,11 @@ impl TcpServerMocker {
 
     /// Return first message received by the mock server on the messages queue
     ///
-    /// If no message is available, will return None
+    /// If no message is available, wait during [TcpServerMocker::DEFAULT_TCP_TIMEOUT_MS](#associatedconstant.DEFAULT_TCP_TIMEOUT_MS) and then return None
     ///
     /// If a message is available, will return the message and remove it from the queue
     pub fn pop_received_message(&self) -> Option<BinaryMessage> {
-        match self.message_receiver.try_recv() {
-            Ok(message) => Some(message),
-            Err(_) => None
-        }
+        self.message_receiver.recv_timeout(std::time::Duration::from_millis(Self::DEFAULT_TCP_TIMEOUT_MS)).ok()
     }
 
     /// Returns the port on which the mock server is listening
