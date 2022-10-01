@@ -60,6 +60,8 @@ impl TcpServerMocker {
     ///
     /// Note that only 1 client will be able to connect to the server
     ///
+    /// If port is set to 0, the OS will choose a free port. Then you can get the port with [get_listening_port](#method.get_listening_port)
+    ///
     /// # Panics
     /// Will panic if the port is already used by another application, or in case of any other error with TCP sockets
     ///
@@ -73,6 +75,10 @@ impl TcpServerMocker {
             mpsc::channel();
 
         let tcp_listener = TcpListener::bind(format!("127.0.0.1:{}", port)).unwrap();
+        let port = match port {
+            0 => tcp_listener.local_addr().unwrap().port(),
+            _ => port,
+        };
 
         thread::spawn(move || {
             let tcp_stream = tcp_listener.accept().unwrap().0; // We need to manage only 1 client
@@ -146,6 +152,24 @@ impl TcpServerMocker {
     /// Will panic in case of error with thread channel
     pub fn add_mock_instructions_list(&self, instructions_list: ServerMockerInstructionsList) {
         self.instructions_sender.send(instructions_list).unwrap();
+    }
+
+    /// Adds a slice of instructions to the server mocker
+    ///
+    /// The server mocker will execute the instructions in the order they are added
+    ///
+    /// This function could be called as many times as you want, until the connection is closed (event by the client or the server if received a [ServerMockerInstruction::StopExchange](../server_mocker_instruction/enum.ServerMockerInstruction.html#variant.StopExchange) instruction)
+    ///
+    /// If you push a [ServerMockerInstruction::SendMessage](../server_mocker_instruction/enum.ServerMockerInstruction.html#variant.SendMessage) instruction, you must ensure that there is a client connected to the server mocker
+    ///
+    /// If you push a [ServerMockerInstruction::ReceiveMessage](../server_mocker_instruction/enum.ServerMockerInstruction.html#variant.ReceiveMessage) instruction, you must ensure that the client will send a message to the server mocker within the timeout defined in [TcpServerMocker::DEFAULT_TCP_TIMEOUT_MS](#associatedconstant.DEFAULT_TCP_TIMEOUT_MS)
+    ///
+    /// # Panics
+    /// Will panic in case of error with thread channel
+    pub fn add_mock_instructions(&self, instructions: &[ServerMockerInstruction]) {
+        self.add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(
+            instructions,
+        ));
     }
 
     /// Return first message received by the mock server on the messages queue

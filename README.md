@@ -20,6 +20,10 @@ socket-server-mocker = "0.0.1"
 
 ## Example
 
+You can view all example test codes in **[tests](tests)** directory.
+
+Here is a simple example:
+
 ```rust
 use std::io::{Read, Write};
 use std::net::TcpStream;
