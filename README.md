@@ -11,7 +11,12 @@ With this crate, it is possible to directly test the messages sent by your appli
 
 ## Usage
 
-_To be filled_
+Add the **socket-server-mocker** dependency to your `Cargo.toml` for testing compilation:
+
+```toml
+[dev-dependencies]
+socket-server-mocker = "0.0.1"
+```
 
 ## Example
 
