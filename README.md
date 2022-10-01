@@ -1,3 +1,21 @@
+# socket-server-mocker
+
+_Mock socket server in Rust, for testing various network clients._
+
+***
+
+I was developing an application that needed to connect to an external server, and I was looking for a way to test the messages sent by the application to the server, directly with `cargo test`. So I looked for a way to directly mock a network server in Rust, without having to integrate a real server in docker each time the tests were launched.
+
+With this crate, it is possible to directly test the messages sent by your application which normally connects to a server.
+
+
+## Usage
+
+_To be filled_
+
+## Example
+
+```rust
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use socket_server_mocker::server_mocker_instruction::{ServerMockerInstruction, ServerMockerInstructionsList};
@@ -55,3 +73,4 @@ fn test_simple_tcp() {
 
     assert_eq!("hello2 from client", std::str::from_utf8(&*tcp_server_mocker.pop_received_message().unwrap()).unwrap());
 }
+```

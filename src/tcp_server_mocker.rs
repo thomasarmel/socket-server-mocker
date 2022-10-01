@@ -38,7 +38,9 @@ pub struct TcpServerMocker {
 impl TcpServerMocker {
     /// Default timeout in milliseconds for the server to wait for a message from the client
     pub const DEFAULT_TCP_TIMEOUT_MS : u64 = 100;
-    const DEFAULT_THREAD_RECEIVER_TIMEOUT_MS : u64 = 100;
+    /// Timeout if no more instruction is available and [ServerMockerInstruction::StopExchange](../server_mocker_instruction/enum.ServerMockerInstruction.html#variant.StopExchange) hasn't been sent
+    pub const DEFAULT_THREAD_RECEIVER_TIMEOUT_MS : u64 = 100;
+
     const DEFAULT_SOCKET_READER_BUFFER_SIZE : usize = 1024;
 
     /// Creates a new TCP server mocker
@@ -68,7 +70,7 @@ impl TcpServerMocker {
     fn handle_connection(mut tcp_stream: TcpStream, instructions_receiver: Receiver<ServerMockerInstructionsList>, message_sender: Sender<BinaryMessage>) {
         tcp_stream.set_read_timeout(Some(std::time::Duration::from_millis(Self::DEFAULT_TCP_TIMEOUT_MS))).unwrap();
         loop {
-            // TODO: is timeout needed ?
+            // Timeout: if no more instruction is available and StopExchange hasn't been sent
             for instruction in instructions_receiver.recv_timeout(std::time::Duration::from_millis(Self::DEFAULT_THREAD_RECEIVER_TIMEOUT_MS)).unwrap().instructions {
                 match instruction {
                     ServerMockerInstruction::SendMessage(binary_message) => {
