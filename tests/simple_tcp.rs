@@ -1,7 +1,9 @@
+use socket_server_mocker::server_mocker_instruction::{
+    ServerMockerInstruction, ServerMockerInstructionsList,
+};
+use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 use std::io::{Read, Write};
 use std::net::TcpStream;
-use socket_server_mocker::server_mocker_instruction::{ServerMockerInstruction, ServerMockerInstructionsList};
-use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 
 #[test]
 fn test_simple_tcp() {
@@ -12,11 +14,15 @@ fn test_simple_tcp() {
     let mut client = TcpStream::connect("127.0.0.1:35642").unwrap();
 
     // Mocked server behavior
-    tcp_server_mocker.add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions([
-            ServerMockerInstruction::ReceiveMessage, // The mocked server will first wait for the client to send a message
-            ServerMockerInstruction::SendMessage("hello from server".as_bytes().to_vec()), // Then it will send a message to the client
-        ].as_slice()
-    ));
+    tcp_server_mocker.add_mock_instructions_list(
+        ServerMockerInstructionsList::new_with_instructions(
+            [
+                ServerMockerInstruction::ReceiveMessage, // The mocked server will first wait for the client to send a message
+                ServerMockerInstruction::SendMessage("hello from server".as_bytes().to_vec()), // Then it will send a message to the client
+            ]
+            .as_slice(),
+        ),
+    );
 
     // TCP client sends its first message
     client.write_all("hello from client".as_bytes()).unwrap();
@@ -32,7 +38,10 @@ fn test_simple_tcp() {
     assert_eq!("hello from server", received_message);
 
     // Check that the mocked server received the message sent by the client
-    assert_eq!("hello from client", std::str::from_utf8(&*tcp_server_mocker.pop_received_message().unwrap()).unwrap());
+    assert_eq!(
+        "hello from client",
+        std::str::from_utf8(&*tcp_server_mocker.pop_received_message().unwrap()).unwrap()
+    );
 
     // New instructions for the mocked server
     let mut instructions = ServerMockerInstructionsList::new().with_added_receive_message(); // Wait for another message from the tested client
@@ -53,5 +62,8 @@ fn test_simple_tcp() {
 
     assert_eq!("hello2 from server", received_message);
 
-    assert_eq!("hello2 from client", std::str::from_utf8(&*tcp_server_mocker.pop_received_message().unwrap()).unwrap());
+    assert_eq!(
+        "hello2 from client",
+        std::str::from_utf8(&*tcp_server_mocker.pop_received_message().unwrap()).unwrap()
+    );
 }

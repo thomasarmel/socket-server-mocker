@@ -1,3 +1,7 @@
+//! # server_mocker_instruction
+//!
+//! Instructions for the mocked server.
+
 /// Represents socket message sent and received by the server mocker.
 pub type BinaryMessage = Vec<u8>;
 
@@ -44,7 +48,9 @@ impl ServerMockerInstructionsList {
     /// Creates a new ServerMockerInstructionsList with the given instructions
     ///
     /// Takes a slice of ServerMockerInstruction and clone it into the new ServerMockerInstructionsList
-    pub fn new_with_instructions(instructions: &[ServerMockerInstruction]) -> ServerMockerInstructionsList {
+    pub fn new_with_instructions(
+        instructions: &[ServerMockerInstruction],
+    ) -> ServerMockerInstructionsList {
         ServerMockerInstructionsList {
             instructions: instructions.to_vec(),
         }
@@ -56,7 +62,8 @@ impl ServerMockerInstructionsList {
     ///
     /// Message is given as a [BinaryMessage](type.BinaryMessage.html)
     pub fn add_send_message(&mut self, message: BinaryMessage) {
-        self.instructions.push(ServerMockerInstruction::SendMessage(message));
+        self.instructions
+            .push(ServerMockerInstruction::SendMessage(message));
     }
 
     /// Add instruction for sending a message to the client
@@ -75,7 +82,8 @@ impl ServerMockerInstructionsList {
     ///
     /// The message could be recovered with [TcpServerMocker::pop_received_message()](../tcp_server_mocker/struct.TcpServerMocker.html#method.pop_received_message)
     pub fn add_receive_message(&mut self) {
-        self.instructions.push(ServerMockerInstruction::ReceiveMessage);
+        self.instructions
+            .push(ServerMockerInstruction::ReceiveMessage);
     }
 
     /// Add instruction for waiting for a message to be received from the client
@@ -94,7 +102,8 @@ impl ServerMockerInstructionsList {
     ///
     /// Takes self as a mutable reference
     pub fn add_stop_exchange(&mut self) {
-        self.instructions.push(ServerMockerInstruction::StopExchange);
+        self.instructions
+            .push(ServerMockerInstruction::StopExchange);
     }
 
     /// Add instruction for stopping the exchange with the client, closing the connection.
