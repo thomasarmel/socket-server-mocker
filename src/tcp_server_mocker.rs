@@ -60,7 +60,7 @@ impl TcpServerMocker {
     ///
     /// Note that only 1 client will be able to connect to the server
     ///
-    /// If port is set to 0, the OS will choose a free port. Then you can get the port with [get_listening_port](#method.get_listening_port)
+    /// If port is set to 0, the OS will choose a free port. Then you can get the port with [listening_port](#method.listening_port)
     ///
     /// # Panics
     /// Will panic if the port is already used by another application, or in case of any other error with TCP sockets

@@ -116,3 +116,138 @@ impl ServerMockerInstructionsList {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_server_mocker_instructions_list() {
+        let mut instructions_list = ServerMockerInstructionsList::new_with_instructions(
+            [
+                ServerMockerInstruction::ReceiveMessage,
+                ServerMockerInstruction::SendMessage("hello from server".as_bytes().to_vec()),
+            ]
+            .as_slice(),
+        )
+        .with_added_receive_message();
+        instructions_list.add_stop_exchange();
+
+        assert_eq!(
+            instructions_list,
+            ServerMockerInstructionsList {
+                instructions: vec![
+                    ServerMockerInstruction::ReceiveMessage,
+                    ServerMockerInstruction::SendMessage("hello from server".as_bytes().to_vec()),
+                    ServerMockerInstruction::ReceiveMessage,
+                    ServerMockerInstruction::StopExchange,
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn test_server_mocker_instructions_list_new() {
+        let instructions_list = ServerMockerInstructionsList::new();
+        assert_eq!(
+            instructions_list,
+            ServerMockerInstructionsList {
+                instructions: vec![]
+            }
+        );
+    }
+
+    #[test]
+    fn test_server_mocker_instructions_list_new_with_instructions() {
+        let instructions_list = ServerMockerInstructionsList::new_with_instructions(
+            [
+                ServerMockerInstruction::ReceiveMessage,
+                ServerMockerInstruction::SendMessage("hello from server".as_bytes().to_vec()),
+            ]
+            .as_slice(),
+        );
+        assert_eq!(
+            instructions_list,
+            ServerMockerInstructionsList {
+                instructions: vec![
+                    ServerMockerInstruction::ReceiveMessage,
+                    ServerMockerInstruction::SendMessage("hello from server".as_bytes().to_vec()),
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn test_server_mocker_instructions_list_add_send_message() {
+        let mut instructions_list = ServerMockerInstructionsList::new();
+        instructions_list.add_send_message("hello from server".as_bytes().to_vec());
+        assert_eq!(
+            instructions_list,
+            ServerMockerInstructionsList {
+                instructions: vec![ServerMockerInstruction::SendMessage(
+                    "hello from server".as_bytes().to_vec()
+                ),]
+            }
+        );
+    }
+
+    #[test]
+    fn test_server_mocker_instructions_list_with_added_send_message() {
+        let instructions_list = ServerMockerInstructionsList::new()
+            .with_added_send_message("hello from server".as_bytes().to_vec());
+        assert_eq!(
+            instructions_list,
+            ServerMockerInstructionsList {
+                instructions: vec![ServerMockerInstruction::SendMessage(
+                    "hello from server".as_bytes().to_vec()
+                ),]
+            }
+        );
+    }
+
+    #[test]
+    fn test_server_mocker_instructions_list_add_receive_message() {
+        let mut instructions_list = ServerMockerInstructionsList::new();
+        instructions_list.add_receive_message();
+        assert_eq!(
+            instructions_list,
+            ServerMockerInstructionsList {
+                instructions: vec![ServerMockerInstruction::ReceiveMessage,]
+            }
+        );
+    }
+
+    #[test]
+    fn test_server_mocker_instructions_list_with_added_receive_message() {
+        let instructions_list = ServerMockerInstructionsList::new().with_added_receive_message();
+        assert_eq!(
+            instructions_list,
+            ServerMockerInstructionsList {
+                instructions: vec![ServerMockerInstruction::ReceiveMessage,]
+            }
+        );
+    }
+
+    #[test]
+    fn test_server_mocker_instructions_list_add_stop_exchange() {
+        let mut instructions_list = ServerMockerInstructionsList::new();
+        instructions_list.add_stop_exchange();
+        assert_eq!(
+            instructions_list,
+            ServerMockerInstructionsList {
+                instructions: vec![ServerMockerInstruction::StopExchange,]
+            }
+        );
+    }
+
+    #[test]
+    fn test_server_mocker_instructions_list_with_added_stop_exchange() {
+        let instructions_list = ServerMockerInstructionsList::new().with_added_stop_exchange();
+        assert_eq!(
+            instructions_list,
+            ServerMockerInstructionsList {
+                instructions: vec![ServerMockerInstruction::StopExchange,]
+            }
+        );
+    }
+}
