@@ -2,11 +2,11 @@
 name = "socket-server-mocker"
 description = "Mock socket server in Rust, for testing various network clients."
 authors = ["Thomas Prévost"]
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/thomasarmel/socket-server-mocker"
-categories = ["network-programming", "testing"]
+categories = ["network-programming", "development-tools::testing"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
