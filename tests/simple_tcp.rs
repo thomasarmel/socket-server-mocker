@@ -1,10 +1,10 @@
+use socket_server_mocker::server_mocker::ServerMocker;
 use socket_server_mocker::server_mocker_instruction::{
     ServerMockerInstruction, ServerMockerInstructionsList,
 };
 use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 use std::io::{Read, Write};
 use std::net::TcpStream;
-use socket_server_mocker::server_mocker::ServerMocker;
 
 #[test]
 fn test_simple_tcp() {
@@ -46,15 +46,20 @@ fn test_simple_tcp() {
 
     // New instructions for the mocked server
     let mut instructions = ServerMockerInstructionsList::new().with_added_receive_message(); // Wait for another message from the tested client
-    instructions.add_send_message_depending_on_last_received_message(|_| {
-        None
-    }); // No message is sent to the server
+    instructions.add_send_message_depending_on_last_received_message(|_| None); // No message is sent to the server
     instructions.add_send_message_depending_on_last_received_message(|last_received_message| {
         // "hello2 from client"
-        let mut received_message_string : String = std::str::from_utf8(&last_received_message.unwrap()).unwrap().to_string();
+        let mut received_message_string: String =
+            std::str::from_utf8(&last_received_message.unwrap())
+                .unwrap()
+                .to_string();
         // "hello2"
         received_message_string.truncate(5);
-        Some(format!("{}2 from server", received_message_string).as_bytes().to_vec())
+        Some(
+            format!("{}2 from server", received_message_string)
+                .as_bytes()
+                .to_vec(),
+        )
     }); // Send a message to the client depending on the last received message by the mocked server
     instructions.add_stop_exchange(); // Finally close the connection
 

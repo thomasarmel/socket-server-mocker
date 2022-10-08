@@ -21,6 +21,7 @@ socket-server-mocker = "0.0.2"
 ## Example
 
 You can view all example test codes in **[tests](tests)** directory.
+In particular, you there are examples of mocking the protocols [PostgreSQL](tests/postgres_mock.rs), [HTTP](tests/http_reqwest_api_mock.rs), [DNS](tests/dns_mock.rs) and [SMTP](tests/smtp_mock.rs).
 
 Here is a simple example in TCP:
 

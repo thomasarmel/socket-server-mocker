@@ -1,7 +1,9 @@
-use std::net::UdpSocket;
 use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_instruction::{ServerMockerInstruction, ServerMockerInstructionsList};
+use socket_server_mocker::server_mocker_instruction::{
+    ServerMockerInstruction, ServerMockerInstructionsList,
+};
 use socket_server_mocker::udp_server_mocker;
+use std::net::UdpSocket;
 
 #[test]
 fn test_simple_udp() {
@@ -14,26 +16,31 @@ fn test_simple_udp() {
 
     // Mocked server behavior
     udp_server_mocker.add_mock_instructions_list(
-        ServerMockerInstructionsList::new_with_instructions(
-            &[
-                // The mocked server will first wait for the client to send a message, with max size = 32 bytes
-                ServerMockerInstruction::ReceiveMessageWithMaxSize(32),
-                // Then it will send a message to the client
-                ServerMockerInstruction::SendMessage("hello from server".as_bytes().to_vec()),
-                // Send nothing
-                ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(|_| {
-                    None
-                }),
-                // Send a message to the client depending on the last received message by the mocked server
-                ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(|last_received_message| {
+        ServerMockerInstructionsList::new_with_instructions(&[
+            // The mocked server will first wait for the client to send a message, with max size = 32 bytes
+            ServerMockerInstruction::ReceiveMessageWithMaxSize(32),
+            // Then it will send a message to the client
+            ServerMockerInstruction::SendMessage("hello from server".as_bytes().to_vec()),
+            // Send nothing
+            ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(|_| None),
+            // Send a message to the client depending on the last received message by the mocked server
+            ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(
+                |last_received_message| {
                     // "hello2 from client"
-                    let mut received_message_string: String = std::str::from_utf8(&last_received_message.unwrap()).unwrap().to_string();
+                    let mut received_message_string: String =
+                        std::str::from_utf8(&last_received_message.unwrap())
+                            .unwrap()
+                            .to_string();
                     // "hello2"
                     received_message_string.truncate(5);
-                    Some(format!("{}2 from server", received_message_string).as_bytes().to_vec())
-                }),
-            ]
-        ),
+                    Some(
+                        format!("{}2 from server", received_message_string)
+                            .as_bytes()
+                            .to_vec(),
+                    )
+                },
+            ),
+        ]),
     );
 
     // UDP client sends its first message

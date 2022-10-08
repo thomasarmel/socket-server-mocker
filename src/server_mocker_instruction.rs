@@ -1,6 +1,6 @@
 //! # server_mocker_instruction
 //!
-//! Instructions for the mocked server.
+//! Instructions sent by the testing code to the mocked server.
 
 /// Represents socket message sent and received by the server mocker.
 pub type BinaryMessage = Vec<u8>;
@@ -33,13 +33,13 @@ pub enum ServerMockerInstruction {
     SendMessageDependingOnLastReceivedMessage(fn(Option<BinaryMessage>) -> Option<BinaryMessage>),
     /// Wait for a message to be received.
     ///
-    /// The message could be recovered with [`ServerMocker::pop_received_message`](trait.ServerMocker.html#tymethod.pop_received_message)
+    /// The message could be recovered with [`ServerMocker::pop_received_message`](../server_mocker/trait.ServerMocker.html#tymethod.pop_received_message)
     ReceiveMessage,
-    /// Wait for a message to be received with a maximum size.
+    /// Wait for a message to be received with a maximum size (useful in UDP).
     ///
     /// If the message is bigger than the given size, the message is truncated.
     ///
-    /// The message could be recovered with [`ServerMocker::pop_received_message`](trait.ServerMocker.html#tymethod.pop_received_message)
+    /// The message could be recovered with [`ServerMocker::pop_received_message`](../server_mocker/trait.ServerMocker.html#tymethod.pop_received_message)
     ReceiveMessageWithMaxSize(usize),
     /// Stop the exchange with the client, close the connection in case of TCP
     StopExchange,
@@ -114,9 +114,8 @@ impl ServerMockerInstructionsList {
         &mut self,
         message: fn(Option<BinaryMessage>) -> Option<BinaryMessage>,
     ) {
-        self.instructions.push(
-            ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(message),
-        );
+        self.instructions
+            .push(ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(message));
     }
 
     /// Add instruction for sending a message to the client depending on the last received message
@@ -301,15 +300,18 @@ mod tests {
         assert_eq!(
             instructions_list,
             ServerMockerInstructionsList {
-                instructions: vec![ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(
-                    message_generator
-                ),]
+                instructions: vec![
+                    ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(
+                        message_generator
+                    ),
+                ]
             }
         );
     }
 
     #[test]
-    fn test_server_mocker_instructions_list_with_added_send_message_depending_on_last_received_message() {
+    fn test_server_mocker_instructions_list_with_added_send_message_depending_on_last_received_message(
+    ) {
         let message_generator = |message| {
             if let Some(message) = message {
                 if message == "hello from client".as_bytes().to_vec() {
@@ -327,9 +329,11 @@ mod tests {
         assert_eq!(
             instructions_list,
             ServerMockerInstructionsList {
-                instructions: vec![ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(
-                    message_generator
-                ),]
+                instructions: vec![
+                    ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(
+                        message_generator
+                    ),
+                ]
             }
         );
     }
@@ -371,7 +375,8 @@ mod tests {
 
     #[test]
     fn test_server_mocker_instructions_list_with_added_receive_message_with_max_size() {
-        let instructions_list = ServerMockerInstructionsList::new().with_added_receive_message_with_max_size(100);
+        let instructions_list =
+            ServerMockerInstructionsList::new().with_added_receive_message_with_max_size(100);
         assert_eq!(
             instructions_list,
             ServerMockerInstructionsList {
