@@ -4,6 +4,7 @@ use socket_server_mocker::server_mocker_instruction::{
 use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 use std::io::Write;
 use std::net::TcpStream;
+use socket_server_mocker::server_mocker::ServerMocker;
 
 #[test]
 fn simple_receiving_message_test() {

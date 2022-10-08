@@ -2,6 +2,7 @@ use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction;
 use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 use std::io::Read;
 use std::net::TcpStream;
+use socket_server_mocker::server_mocker::ServerMocker;
 
 #[test]
 fn simple_sending_message_test_random_port() {

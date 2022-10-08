@@ -10,6 +10,7 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
+use crate::server_mocker::ServerMocker;
 
 /// A TCP server mocker
 ///
@@ -28,6 +29,7 @@ pub struct TcpServerMocker {
 /// ```
 /// use std::io::Write;
 /// use std::net::TcpStream;
+/// use socket_server_mocker::server_mocker::ServerMocker;
 /// use socket_server_mocker::server_mocker_instruction::{ServerMockerInstructionsList, ServerMockerInstruction};
 /// use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 ///
@@ -43,14 +45,7 @@ pub struct TcpServerMocker {
 /// let mock_server_received_message = tcp_server_mocker.pop_received_message();
 /// assert_eq!(Some(vec![1, 2, 3]), mock_server_received_message);
 /// ```
-impl TcpServerMocker {
-    /// Default timeout in milliseconds for the server to wait for a message from the client
-    pub const DEFAULT_TCP_TIMEOUT_MS: u64 = 100;
-    /// Timeout if no more instruction is available and [ServerMockerInstruction::StopExchange](../server_mocker_instruction/enum.ServerMockerInstruction.html#variant.StopExchange) hasn't been sent
-    pub const DEFAULT_THREAD_RECEIVER_TIMEOUT_MS: u64 = 100;
-
-    const DEFAULT_SOCKET_READER_BUFFER_SIZE: usize = 1024;
-
+impl ServerMocker for TcpServerMocker {
     /// Creates a new TCP server mocker
     ///
     /// # Arguments
@@ -66,7 +61,7 @@ impl TcpServerMocker {
     /// Will panic if the port is already used by another application, or in case of any other error with TCP sockets
     ///
     /// Will panic in case of error with thread channel
-    pub fn new(port: u16) -> Self {
+    fn new(port: u16) -> Self {
         let (instruction_tx, instruction_rx): (
             Sender<ServerMockerInstructionsList>,
             Receiver<ServerMockerInstructionsList>,
@@ -92,6 +87,53 @@ impl TcpServerMocker {
         }
     }
 
+    /// Returns the port on which the mock server is listening
+    ///
+    /// Listen only on local interface
+    ///
+    /// Port should not be used by another listening process
+    fn listening_port(&self) -> u16 {
+        self.listening_port
+    }
+
+    /// Adds a slice of instructions to the server mocker
+    ///
+    /// The server mocker will execute the instructions in the order they are added
+    ///
+    /// This function could be called as many times as you want, until the connection is closed (event by the client or the server if received a [ServerMockerInstruction::StopExchange](../server_mocker_instruction/enum.ServerMockerInstruction.html#variant.StopExchange) instruction)
+    ///
+    /// If you push a [ServerMockerInstruction::SendMessage](../server_mocker_instruction/enum.ServerMockerInstruction.html#variant.SendMessage) instruction, you must ensure that there is a client connected to the server mocker
+    ///
+    /// If you push a [ServerMockerInstruction::ReceiveMessage](../server_mocker_instruction/enum.ServerMockerInstruction.html#variant.ReceiveMessage) instruction, you must ensure that the client will send a message to the server mocker within the timeout defined in [TcpServerMocker::DEFAULT_TCP_TIMEOUT_MS](#associatedconstant.DEFAULT_TCP_TIMEOUT_MS)
+    ///
+    /// # Panics
+    /// Will panic in case of error with thread channel
+    fn add_mock_instructions_list(&self, instructions_list: ServerMockerInstructionsList) {
+        self.instructions_sender.send(instructions_list).unwrap();
+    }
+
+    /// Return first message received by the mock server on the messages queue
+    ///
+    /// If no message is available, wait during [TcpServerMocker::DEFAULT_TCP_TIMEOUT_MS](#associatedconstant.DEFAULT_TCP_TIMEOUT_MS) and then return None
+    ///
+    /// If a message is available, will return the message and remove it from the queue
+    fn pop_received_message(&self) -> Option<BinaryMessage> {
+        self.message_receiver
+            .recv_timeout(std::time::Duration::from_millis(
+                Self::DEFAULT_TCP_TIMEOUT_MS,
+            ))
+            .ok()
+    }
+}
+
+impl TcpServerMocker {
+    /// Default timeout in milliseconds for the server to wait for a message from the client
+    pub const DEFAULT_TCP_TIMEOUT_MS: u64 = 100;
+    /// Timeout if no more instruction is available and [ServerMockerInstruction::StopExchange](../server_mocker_instruction/enum.ServerMockerInstruction.html#variant.StopExchange) hasn't been sent
+    pub const DEFAULT_THREAD_RECEIVER_TIMEOUT_MS: u64 = 100;
+
+    const DEFAULT_SOCKET_READER_BUFFER_SIZE: usize = 1024;
+
     fn handle_connection(
         mut tcp_stream: TcpStream,
         instructions_receiver: Receiver<ServerMockerInstructionsList>,
@@ -102,6 +144,7 @@ impl TcpServerMocker {
                 Self::DEFAULT_TCP_TIMEOUT_MS,
             )))
             .unwrap();
+        let mut last_received_message : Option<BinaryMessage> = None;
         loop {
             // Timeout: if no more instruction is available and StopExchange hasn't been sent
             let instructions_list = match instructions_receiver.recv_timeout(
@@ -117,17 +160,21 @@ impl TcpServerMocker {
                     ServerMockerInstruction::SendMessage(binary_message) => {
                         tcp_stream.write_all(&binary_message).unwrap();
                     }
-                    ServerMockerInstruction::ReceiveMessage => {
-                        let mut whole_received_packet: Vec<u8> = Vec::new();
-                        let mut buffer = [0; Self::DEFAULT_SOCKET_READER_BUFFER_SIZE];
-
-                        loop {
-                            let bytes_read = tcp_stream.read(&mut buffer).unwrap();
-                            whole_received_packet.extend_from_slice(&buffer[..bytes_read]);
-                            if bytes_read < Self::DEFAULT_SOCKET_READER_BUFFER_SIZE {
-                                break;
-                            }
+                    ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(sent_message_calculator) => {
+                        let message_to_send = sent_message_calculator(last_received_message.clone());
+                        if let Some(message_to_send) = message_to_send {
+                            tcp_stream.write_all(&message_to_send).unwrap();
                         }
+                    }
+                    ServerMockerInstruction::ReceiveMessage => {
+                        let whole_received_packet = Self::read_packet(&mut tcp_stream);
+                        last_received_message = Some(whole_received_packet.clone());
+                        message_sender.send(whole_received_packet).unwrap();
+                    }
+                    ServerMockerInstruction::ReceiveMessageWithMaxSize(max_message_size) => {
+                        let mut  whole_received_packet = Self::read_packet(&mut tcp_stream);
+                        whole_received_packet.truncate(max_message_size);
+                        last_received_message = Some(whole_received_packet.clone());
                         message_sender.send(whole_received_packet).unwrap();
                     }
                     ServerMockerInstruction::StopExchange => {
@@ -138,59 +185,18 @@ impl TcpServerMocker {
         }
     }
 
-    /// Adds a list of instructions to the server mocker
-    ///
-    /// The server mocker will execute the instructions in the order they are added
-    ///
-    /// This function could be called as many times as you want, until the connection is closed (event by the client or the server if received a [ServerMockerInstruction::StopExchange](../server_mocker_instruction/enum.ServerMockerInstruction.html#variant.StopExchange) instruction)
-    ///
-    /// If you push a [ServerMockerInstruction::SendMessage](../server_mocker_instruction/enum.ServerMockerInstruction.html#variant.SendMessage) instruction, you must ensure that there is a client connected to the server mocker
-    ///
-    /// If you push a [ServerMockerInstruction::ReceiveMessage](../server_mocker_instruction/enum.ServerMockerInstruction.html#variant.ReceiveMessage) instruction, you must ensure that the client will send a message to the server mocker within the timeout defined in [TcpServerMocker::DEFAULT_TCP_TIMEOUT_MS](#associatedconstant.DEFAULT_TCP_TIMEOUT_MS)
-    ///
-    /// # Panics
-    /// Will panic in case of error with thread channel
-    pub fn add_mock_instructions_list(&self, instructions_list: ServerMockerInstructionsList) {
-        self.instructions_sender.send(instructions_list).unwrap();
-    }
+    // Read a TCP packet from the client, using temporary buffer of size [DEFAULT_SOCKET_READER_BUFFER_SIZE](#associatedconstant.DEFAULT_SOCKET_READER_BUFFER_SIZE)
+    fn read_packet(tcp_stream: &mut TcpStream) -> BinaryMessage {
+        let mut whole_received_packet: Vec<u8> = Vec::new();
+        let mut buffer = [0; Self::DEFAULT_SOCKET_READER_BUFFER_SIZE];
 
-    /// Adds a slice of instructions to the server mocker
-    ///
-    /// The server mocker will execute the instructions in the order they are added
-    ///
-    /// This function could be called as many times as you want, until the connection is closed (event by the client or the server if received a [ServerMockerInstruction::StopExchange](../server_mocker_instruction/enum.ServerMockerInstruction.html#variant.StopExchange) instruction)
-    ///
-    /// If you push a [ServerMockerInstruction::SendMessage](../server_mocker_instruction/enum.ServerMockerInstruction.html#variant.SendMessage) instruction, you must ensure that there is a client connected to the server mocker
-    ///
-    /// If you push a [ServerMockerInstruction::ReceiveMessage](../server_mocker_instruction/enum.ServerMockerInstruction.html#variant.ReceiveMessage) instruction, you must ensure that the client will send a message to the server mocker within the timeout defined in [TcpServerMocker::DEFAULT_TCP_TIMEOUT_MS](#associatedconstant.DEFAULT_TCP_TIMEOUT_MS)
-    ///
-    /// # Panics
-    /// Will panic in case of error with thread channel
-    pub fn add_mock_instructions(&self, instructions: &[ServerMockerInstruction]) {
-        self.add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(
-            instructions,
-        ));
-    }
-
-    /// Return first message received by the mock server on the messages queue
-    ///
-    /// If no message is available, wait during [TcpServerMocker::DEFAULT_TCP_TIMEOUT_MS](#associatedconstant.DEFAULT_TCP_TIMEOUT_MS) and then return None
-    ///
-    /// If a message is available, will return the message and remove it from the queue
-    pub fn pop_received_message(&self) -> Option<BinaryMessage> {
-        self.message_receiver
-            .recv_timeout(std::time::Duration::from_millis(
-                Self::DEFAULT_TCP_TIMEOUT_MS,
-            ))
-            .ok()
-    }
-
-    /// Returns the port on which the mock server is listening
-    ///
-    /// Listen only on local interface
-    ///
-    /// Port should not be used by another listening process
-    pub fn listening_port(&self) -> u16 {
-        self.listening_port
+        loop {
+            let bytes_read = tcp_stream.read(&mut buffer).unwrap();
+            whole_received_packet.extend_from_slice(&buffer[..bytes_read]);
+            if bytes_read < Self::DEFAULT_SOCKET_READER_BUFFER_SIZE {
+                break;
+            }
+        }
+        whole_received_packet
     }
 }
