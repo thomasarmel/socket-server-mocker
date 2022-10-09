@@ -151,7 +151,7 @@ impl TcpServerMocker {
         }
     }
 
-    // Read a TCP packet from the client, using temporary buffer of size [DEFAULT_SOCKET_READER_BUFFER_SIZE](#associatedconstant.DEFAULT_SOCKET_READER_BUFFER_SIZE)
+    // Read a TCP packet from the client, using temporary buffer of size [DEFAULT_SOCKET_READER_BUFFER_SIZE](Self::DEFAULT_SOCKET_READER_BUFFER_SIZE)
     fn read_packet(tcp_stream: &mut TcpStream) -> BinaryMessage {
         let mut whole_received_packet: Vec<u8> = Vec::new();
         let mut buffer = [0; Self::DEFAULT_SOCKET_READER_BUFFER_SIZE];

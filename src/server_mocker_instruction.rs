@@ -33,13 +33,13 @@ pub enum ServerMockerInstruction {
     SendMessageDependingOnLastReceivedMessage(fn(Option<BinaryMessage>) -> Option<BinaryMessage>),
     /// Wait for a message to be received.
     ///
-    /// The message could be recovered with [`ServerMocker::pop_received_message`](../server_mocker/trait.ServerMocker.html#tymethod.pop_received_message)
+    /// The message could be recovered with [`ServerMocker::pop_received_message`](crate::server_mocker::ServerMocker::pop_received_message)
     ReceiveMessage,
     /// Wait for a message to be received with a maximum size (useful in UDP).
     ///
     /// If the message is bigger than the given size, the message is truncated.
     ///
-    /// The message could be recovered with [`ServerMocker::pop_received_message`](../server_mocker/trait.ServerMocker.html#tymethod.pop_received_message)
+    /// The message could be recovered with [`ServerMocker::pop_received_message`](crate::server_mocker::ServerMocker::pop_received_message)
     ReceiveMessageWithMaxSize(usize),
     /// Stop the exchange with the client, close the connection in case of TCP
     StopExchange,
@@ -49,7 +49,7 @@ pub enum ServerMockerInstruction {
 ///
 /// The list is executed in order, one instruction at a time.
 ///
-/// The list is executed in a loop, until the [StopExchange](enum.ServerMockerInstruction.html#variant.StopExchange) instruction is received.
+/// The list is executed in a loop, until the [StopExchange](ServerMockerInstruction::StopExchange) instruction is received.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ServerMockerInstructionsList {
     pub(crate) instructions: Vec<ServerMockerInstruction>,
@@ -89,7 +89,7 @@ impl ServerMockerInstructionsList {
     ///
     /// Takes self as a mutable reference
     ///
-    /// Message is given as a [BinaryMessage](type.BinaryMessage.html)
+    /// Message is given as a [BinaryMessage](BinaryMessage)
     pub fn add_send_message(&mut self, message: BinaryMessage) {
         self.instructions
             .push(ServerMockerInstruction::SendMessage(message));
@@ -99,7 +99,7 @@ impl ServerMockerInstructionsList {
     ///
     /// Takes ownership of self and returns a new ServerMockerInstructionsList
     ///
-    /// Message is given as a [BinaryMessage](type.BinaryMessage.html)
+    /// Message is given as a [BinaryMessage](BinaryMessage)
     pub fn with_added_send_message(mut self, message: BinaryMessage) -> Self {
         self.add_send_message(message);
         self
@@ -135,7 +135,7 @@ impl ServerMockerInstructionsList {
     ///
     /// Takes self as a mutable reference
     ///
-    /// The message could be recovered with [TcpServerMocker::pop_received_message()](../tcp_server_mocker/struct.TcpServerMocker.html#method.pop_received_message)
+    /// The message could be recovered with [TcpServerMocker::pop_received_message()](crate::server_mocker::ServerMocker::pop_received_message)
     pub fn add_receive_message(&mut self) {
         self.instructions
             .push(ServerMockerInstruction::ReceiveMessage);
@@ -145,7 +145,7 @@ impl ServerMockerInstructionsList {
     ///
     /// Takes ownership of self and returns a new ServerMockerInstructionsList
     ///
-    /// The message could be recovered with [TcpServerMocker::pop_received_message()](../tcp_server_mocker/struct.TcpServerMocker.html#method.pop_received_message)
+    /// The message could be recovered with [TcpServerMocker::pop_received_message()](crate::server_mocker::ServerMocker::pop_received_message)
     pub fn with_added_receive_message(mut self) -> Self {
         self.add_receive_message();
         self

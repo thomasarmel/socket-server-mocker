@@ -20,7 +20,7 @@ pub trait ServerMocker {
     /// Default timeout in milliseconds for the server to wait for a message from the client.
     const DEFAULT_NET_TIMEOUT_MS: u64 = 100;
 
-    /// Timeout if no more instruction is available and [ServerMockerInstruction::StopExchange](/socket_server_mocker/server_mocker_instruction/enum.ServerMockerInstruction.html#variant.StopExchange) hasn't been sent
+    /// Timeout if no more instruction is available and [ServerMockerInstruction::StopExchange](crate::server_mocker_instruction::ServerMockerInstruction::StopExchange) hasn't been sent
     const DEFAULT_THREAD_RECEIVER_TIMEOUT_MS: u64 = 100;
 
     /// Creates a new server mocker
@@ -32,7 +32,7 @@ pub trait ServerMocker {
     ///
     /// Note that only 1 client will be able to connect to the server in case you use TCP, and the messages that the server send back to the client will be sent to the last client that sent to the server.
     ///
-    /// If port is set to 0, the OS will choose a free port. Then you can get the port with [listening_port](#tymethod.listening_port)
+    /// If port is set to 0, the OS will choose a free port. Then you can get the port with [listening_port](Self::listening_port)
     ///
     /// # Panics
     /// Will panic if the port is already used by another application, or in case of any other error with sockets
@@ -51,11 +51,11 @@ pub trait ServerMocker {
     ///
     /// The server mocker will execute the instructions in the order they are added
     ///
-    /// This function could be called as many times as you want, until the connection is closed (event by the client or the server if received a [ServerMockerInstruction::StopExchange](/socket_server_mocker/server_mocker_instruction/enum.ServerMockerInstruction.html#variant.StopExchange) instruction)
+    /// This function could be called as many times as you want, until the connection is closed (event by the client or the server if received a [ServerMockerInstruction::StopExchange](crate::server_mocker_instruction::ServerMockerInstruction::StopExchange) instruction)
     ///
-    /// If you push a [ServerMockerInstruction::SendMessage](/socket_server_mocker/server_mocker_instruction/enum.ServerMockerInstruction.html#variant.SendMessage) instruction, you must ensure that there is a client connected to the server mocker
+    /// If you push a [ServerMockerInstruction::SendMessage](crate::server_mocker_instruction::ServerMockerInstruction::SendMessage) instruction, you must ensure that there is a client connected to the server mocker
     ///
-    /// If you push a [ServerMockerInstruction::ReceiveMessage](/socket_server_mocker/server_mocker_instruction/enum.ServerMockerInstruction.html#variant.ReceiveMessage) instruction, you must ensure that the client will send a message to the server mocker within the timeout defined in [ServerMocker::DEFAULT_NET_TIMEOUT_MS](#associatedconstant.DEFAULT_NET_TIMEOUT_MS)
+    /// If you push a [ServerMockerInstruction::ReceiveMessage](crate::server_mocker_instruction::ServerMockerInstruction::ReceiveMessage) instruction, you must ensure that the client will send a message to the server mocker within the timeout defined in [ServerMocker::DEFAULT_NET_TIMEOUT_MS](Self::DEFAULT_NET_TIMEOUT_MS)
     ///
     /// # Panics
     /// Will panic in case of error with thread channel
@@ -65,11 +65,11 @@ pub trait ServerMocker {
     ///
     /// The server mocker will execute the instructions in the order they are added
     ///
-    /// This function could be called as many times as you want, until the connection is closed (event by the client or the server if received a [ServerMockerInstruction::StopExchange](/socket_server_mocker/server_mocker_instruction/enum.ServerMockerInstruction.html#variant.StopExchange) instruction)
+    /// This function could be called as many times as you want, until the connection is closed (event by the client or the server if received a [ServerMockerInstruction::StopExchange](crate::server_mocker_instruction::ServerMockerInstruction::StopExchange) instruction)
     ///
-    /// If you push a [ServerMockerInstruction::SendMessage](/socket_server_mocker/server_mocker_instruction/enum.ServerMockerInstruction.html#variant.SendMessage) instruction, you must ensure that there is a client connected to the server mocker
+    /// If you push a [ServerMockerInstruction::SendMessage](crate::server_mocker_instruction::ServerMockerInstruction::SendMessage) instruction, you must ensure that there is a client connected to the server mocker
     ///
-    /// If you push a [ServerMockerInstruction::ReceiveMessage](/socket_server_mocker/server_mocker_instruction/enum.ServerMockerInstruction.html#variant.ReceiveMessage) instruction, you must ensure that the client will send a message to the server mocker within the timeout defined in [ServerMocker::DEFAULT_NET_TIMEOUT_MS](#associatedconstant.DEFAULT_NET_TIMEOUT_MS)
+    /// If you push a [ServerMockerInstruction::ReceiveMessage](crate::server_mocker_instruction::ServerMockerInstruction::ReceiveMessage) instruction, you must ensure that the client will send a message to the server mocker within the timeout defined in [ServerMocker::DEFAULT_NET_TIMEOUT_MS](Self::DEFAULT_NET_TIMEOUT_MS)
     ///
     /// # Panics
     /// Will panic in case of error with thread channel
@@ -81,7 +81,7 @@ pub trait ServerMocker {
 
     /// Return first message received by the mock server on the messages queue
     ///
-    /// If no message is available, wait during [ServerMocker::DEFAULT_NET_TIMEOUT_MS](#associatedconstant.DEFAULT_NET_TIMEOUT_MS) and then return None
+    /// If no message is available, wait during [ServerMocker::DEFAULT_NET_TIMEOUT_MS](Self::DEFAULT_NET_TIMEOUT_MS) and then return None
     ///
     /// If a message is available, will return the message and remove it from the queue
     fn pop_received_message(&self) -> Option<BinaryMessage>;

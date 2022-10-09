@@ -16,7 +16,7 @@ use std::thread;
 /// Can be used to mock a UDP server if the application you want to test uses UDP sockets to connect to a server.
 ///
 /// It's preferable that only 1 client sends messages to the mocked server.
-/// When the object is dropped or a [stop instruction](/socket_server_mocker/server_mocker_instruction/enum.ServerMockerInstruction.html#variant.StopExchange) is received, the mocked server will stop.
+/// When the object is dropped or a [stop instruction](crate::server_mocker_instruction::ServerMockerInstruction::StopExchange) is received, the mocked server will stop.
 /// The server will also stop in case no more instructions are available.
 pub struct UdpServerMocker {
     listening_port: u16,
