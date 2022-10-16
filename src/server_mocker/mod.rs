@@ -2,6 +2,7 @@
 //!
 //! Mock an IP server for testing application that connect to external server.
 
+pub mod server_mocker_error;
 pub mod tcp_server_mocker;
 pub mod udp_server_mocker;
 
@@ -35,10 +36,10 @@ pub trait ServerMocker {
     /// If port is set to 0, the OS will choose a free port. Then you can get the port with [listening_port](Self::listening_port)
     ///
     /// # Panics
-    /// Will panic if the port is already used by another application, or in case of any other error with sockets
-    ///
     /// Will panic in case of error with thread channel
-    fn new(port: u16) -> Self;
+    fn new(port: u16) -> Result<Self, server_mocker_error::ServerMockerError>
+    where
+        Self: Sized;
 
     /// Returns the port on which the mock server is listening
     ///
@@ -56,10 +57,10 @@ pub trait ServerMocker {
     /// If you push a [ServerMockerInstruction::SendMessage](crate::server_mocker_instruction::ServerMockerInstruction::SendMessage) instruction, you must ensure that there is a client connected to the server mocker
     ///
     /// If you push a [ServerMockerInstruction::ReceiveMessage](crate::server_mocker_instruction::ServerMockerInstruction::ReceiveMessage) instruction, you must ensure that the client will send a message to the server mocker within the timeout defined in [ServerMocker::DEFAULT_NET_TIMEOUT_MS](Self::DEFAULT_NET_TIMEOUT_MS)
-    ///
-    /// # Panics
-    /// Will panic in case of error with thread channel
-    fn add_mock_instructions_list(&self, instructions_list: ServerMockerInstructionsList);
+    fn add_mock_instructions_list(
+        &self,
+        instructions_list: ServerMockerInstructionsList,
+    ) -> Result<(), server_mocker_error::ServerMockerError>;
 
     /// Adds a slice of instructions to the server mocker
     ///
@@ -70,13 +71,13 @@ pub trait ServerMocker {
     /// If you push a [ServerMockerInstruction::SendMessage](crate::server_mocker_instruction::ServerMockerInstruction::SendMessage) instruction, you must ensure that there is a client connected to the server mocker
     ///
     /// If you push a [ServerMockerInstruction::ReceiveMessage](crate::server_mocker_instruction::ServerMockerInstruction::ReceiveMessage) instruction, you must ensure that the client will send a message to the server mocker within the timeout defined in [ServerMocker::DEFAULT_NET_TIMEOUT_MS](Self::DEFAULT_NET_TIMEOUT_MS)
-    ///
-    /// # Panics
-    /// Will panic in case of error with thread channel
-    fn add_mock_instructions(&self, instructions: &[ServerMockerInstruction]) {
+    fn add_mock_instructions(
+        &self,
+        instructions: &[ServerMockerInstruction],
+    ) -> Result<(), server_mocker_error::ServerMockerError> {
         self.add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(
             instructions,
-        ));
+        ))
     }
 
     /// Return first message received by the mock server on the messages queue
@@ -85,4 +86,9 @@ pub trait ServerMocker {
     ///
     /// If a message is available, will return the message and remove it from the queue
     fn pop_received_message(&self) -> Option<BinaryMessage>;
+
+    /// Return first [error](crate::server_mocker_error::ServerMockerError) received by the mock server on the errors queue
+    ///
+    /// If no error is available, wait during [ServerMocker::DEFAULT_NET_TIMEOUT_MS](Self::DEFAULT_NET_TIMEOUT_MS) and then return None
+    fn pop_server_error(&self) -> Option<server_mocker_error::ServerMockerError>;
 }

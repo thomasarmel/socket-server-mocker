@@ -37,7 +37,7 @@ use socket_server_mocker::server_mocker::ServerMocker;
 #[test]
 fn test_simple_tcp() {
     // Mock a TCP server listening on port 35642. Note that the mock will only listen on the local interface.
-    let tcp_server_mocker = TcpServerMocker::new(35642);
+    let tcp_server_mocker = TcpServerMocker::new(35642).unwrap();
 
     // Create the TCP client to test
     let mut client = TcpStream::connect("127.0.0.1:35642").unwrap();
@@ -104,6 +104,9 @@ fn test_simple_tcp() {
         "hello2 from client",
         std::str::from_utf8(&*tcp_server_mocker.pop_received_message().unwrap()).unwrap()
     );
+
+    // Check that no error has been raised by the mocked server
+    assert!(tcp_server_mocker.pop_server_error().is_none());
 }
 ```
 
@@ -118,7 +121,7 @@ use socket_server_mocker::udp_server_mocker;
 #[test]
 fn test_simple_udp() {
     // Mock a UDP server listening on port 35642. Note that the mock will only listen on the local interface.
-    let udp_server_mocker = udp_server_mocker::UdpServerMocker::new(35642);
+    let udp_server_mocker = udp_server_mocker::UdpServerMocker::new(35642).unwrap();
 
     // Create the UDP client to test
     let client_socket = UdpSocket::bind("127.0.0.1:34254").unwrap();
@@ -173,5 +176,8 @@ fn test_simple_udp() {
 
     // Check that the message received by the client is the one sent by the mocked server
     assert_eq!("hello2 from server", received_message);
+
+    // Check that no error has been raised by the mocked server
+    assert!(udp_server_mocker.pop_server_error().is_none());
 }
 ```
