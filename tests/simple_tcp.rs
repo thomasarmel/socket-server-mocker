@@ -1,11 +1,15 @@
 use socket_server_mocker::server_mocker::ServerMocker;
 use socket_server_mocker::server_mocker_error::ServerMockerErrorFatality;
-use socket_server_mocker::server_mocker_instruction::{
-    ServerMockerInstruction, ServerMockerInstructionsList,
+use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::{
+    ReceiveMessage, ReceiveMessageWithMaxSize, SendMessage,
 };
+use socket_server_mocker::server_mocker_instruction::ServerMockerInstructionsList;
 use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 use std::io::{Read, Write};
 use std::net::TcpStream;
+use std::str::from_utf8;
+use std::thread::sleep;
+use std::time::Duration;
 
 #[test]
 fn test_simple_tcp() {
@@ -19,8 +23,8 @@ fn test_simple_tcp() {
     tcp_server_mocker
         .add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(
             [
-                ServerMockerInstruction::ReceiveMessageWithMaxSize(16), // The mocked server will first wait for the client to send a message
-                ServerMockerInstruction::SendMessage("hello from server".as_bytes().to_vec()), // Then it will send a message to the client
+                ReceiveMessageWithMaxSize(16), // The mocked server will first wait for the client to send a message
+                SendMessage("hello from server".as_bytes().to_vec()), // Then it will send a message to the client
             ]
             .as_slice(),
         ))
@@ -34,15 +38,16 @@ fn test_simple_tcp() {
     let received_size = client.read(&mut buffer).unwrap();
 
     // convert shrunk buffer to string
-    let received_message = std::str::from_utf8(&buffer[..received_size]).unwrap();
+    let received_message = from_utf8(&buffer[..received_size]).unwrap();
 
     // Check that the message received by the client is the one sent by the mocked server
     assert_eq!("hello from server", received_message);
 
     // Check that the mocked server received the message sent by the client
+    // The message is only 16 bytes, the letter 't' is dropped
     assert_eq!(
         "hello from clien",
-        std::str::from_utf8(&*tcp_server_mocker.pop_received_message().unwrap()).unwrap()
+        from_utf8(&tcp_server_mocker.pop_received_message().unwrap()).unwrap()
     );
 
     // New instructions for the mocked server
@@ -50,14 +55,13 @@ fn test_simple_tcp() {
     instructions.add_send_message_depending_on_last_received_message(|_| None); // No message is sent to the server
     instructions.add_send_message_depending_on_last_received_message(|last_received_message| {
         // "hello2 from client"
-        let mut received_message_string: String =
-            std::str::from_utf8(&last_received_message.unwrap())
-                .unwrap()
-                .to_string();
+        let mut received_message_string: String = from_utf8(&last_received_message.unwrap())
+            .unwrap()
+            .to_string();
         // "hello2"
         received_message_string.truncate(5);
         Some(
-            format!("{}2 from server", received_message_string)
+            format!("{received_message_string}2 from server")
                 .as_bytes()
                 .to_vec(),
         )
@@ -76,13 +80,13 @@ fn test_simple_tcp() {
     let received_size = client.read(&mut buffer).unwrap();
 
     // convert shrunk buffer to string
-    let received_message = std::str::from_utf8(&buffer[..received_size]).unwrap();
+    let received_message = from_utf8(&buffer[..received_size]).unwrap();
 
     assert_eq!("hello2 from server", received_message);
 
     assert_eq!(
         "hello2 from client",
-        std::str::from_utf8(&*tcp_server_mocker.pop_received_message().unwrap()).unwrap()
+        from_utf8(&tcp_server_mocker.pop_received_message().unwrap()).unwrap()
     );
 
     // Check that no error has been raised by the mocked server
@@ -112,12 +116,12 @@ fn test_receive_timeout() {
     tcp_server_mocker
         .add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(&[
             // Expect to receive a message from the client
-            ServerMockerInstruction::ReceiveMessage,
+            ReceiveMessage,
         ]))
         .unwrap();
 
     // Wait twice the receive timeout
-    std::thread::sleep(std::time::Duration::from_millis(
+    sleep(Duration::from_millis(
         2 * TcpServerMocker::DEFAULT_NET_TIMEOUT_MS,
     ));
 

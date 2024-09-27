@@ -5,6 +5,7 @@ use std::net::Ipv4Addr;
 use std::str::FromStr;
 use trust_dns_client::client::{Client, SyncClient};
 use trust_dns_client::op::DnsResponse;
+use trust_dns_client::rr::rdata::A;
 use trust_dns_client::rr::{DNSClass, Name, RData, Record, RecordType};
 use trust_dns_client::udp::UdpClientConnection;
 
@@ -153,9 +154,9 @@ fn test_dns_mock() {
 
     // Check returned IP address is correct
     if let Some(RData::A(ref ip)) = answers[0].data() {
-        assert_eq!(*ip, Ipv4Addr::new(93, 184, 216, 34))
+        assert_eq!(*ip, A(Ipv4Addr::new(93, 184, 216, 34)));
     } else {
-        assert!(false, "unexpected result")
+        panic!("unexpected result");
     }
 
     assert_eq!(

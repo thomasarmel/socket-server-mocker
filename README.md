@@ -20,8 +20,8 @@ socket-server-mocker = "0.0.4"
 
 ## Example
 
-You can view all example test codes in **[tests](tests)** directory.
-In particular, you there are examples of mocking the protocols [PostgreSQL](tests/postgres_mock.rs), [HTTP](tests/http_reqwest_api_mock.rs), [DNS](tests/dns_mock.rs) and [SMTP](tests/smtp_mock.rs).
+You can view all example test codes in **[tests](./tests)** directory.
+In particular, you there are examples of mocking the protocols [PostgreSQL](tests/postgres_mock.rs), [HTTP](tests/http_reqwest_api_mock.rs), [DNS](./tests/dns_mock.rs) and [SMTP](./tests/smtp_mock.rs).
 
 Here is a simple example in TCP:
 
@@ -46,8 +46,8 @@ fn test_simple_tcp() {
     tcp_server_mocker.add_mock_instructions_list(
         ServerMockerInstructionsList::new_with_instructions(
             [
-                ServerMockerInstruction::ReceiveMessageWithMaxSize(16), // The mocked server will first wait for the client to send a message
-                ServerMockerInstruction::SendMessage("hello from server".as_bytes().to_vec()), // Then it will send a message to the client
+                ReceiveMessageWithMaxSize(16), // The mocked server will first wait for the client to send a message
+                SendMessage("hello from server".as_bytes().to_vec()), // Then it will send a message to the client
             ]
                 .as_slice(),
         ),
@@ -68,7 +68,7 @@ fn test_simple_tcp() {
 
     // Check that the mocked server received the message sent by the client
     assert_eq!(
-        "hello from clien",
+        "hello from client",
         std::str::from_utf8(&*tcp_server_mocker.pop_received_message().unwrap()).unwrap()
     );
 
@@ -132,15 +132,15 @@ fn test_simple_udp() {
         ServerMockerInstructionsList::new_with_instructions(
             &[
                 // The mocked server will first wait for the client to send a message, with max size = 32 bytes
-                ServerMockerInstruction::ReceiveMessageWithMaxSize(32),
+                ReceiveMessageWithMaxSize(32),
                 // Then it will send a message to the client
-                ServerMockerInstruction::SendMessage("hello from server".as_bytes().to_vec()),
+                SendMessage("hello from server".as_bytes().to_vec()),
                 // Send nothing
-                ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(|_| {
+                SendMessageDependingOnLastReceivedMessage(|_| {
                     None
                 }),
                 // Send a message to the client depending on the last received message by the mocked server
-                ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(|last_received_message| {
+                SendMessageDependingOnLastReceivedMessage(|last_received_message| {
                     // "hello2 from client"
                     let mut received_message_string: String = std::str::from_utf8(&last_received_message.unwrap()).unwrap().to_string();
                     // "hello2"

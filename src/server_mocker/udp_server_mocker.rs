@@ -3,7 +3,6 @@
 //! Mock a UDP server for testing application that connect to external UDP server.
 
 use crate::server_mocker::ServerMocker;
-use crate::server_mocker_error;
 use crate::server_mocker_error::{ServerMockerError, ServerMockerErrorFatality};
 use crate::server_mocker_instruction::{
     BinaryMessage, ServerMockerInstruction, ServerMockerInstructionsList,
@@ -18,7 +17,7 @@ use std::thread;
 /// Can be used to mock a UDP server if the application you want to test uses UDP sockets to connect to a server.
 ///
 /// It's preferable that only 1 client sends messages to the mocked server.
-/// When the object is dropped or a [stop instruction](crate::server_mocker_instruction::ServerMockerInstruction::StopExchange) is received, the mocked server will stop.
+/// When the object is dropped or a [stop instruction](ServerMockerInstruction::StopExchange) is received, the mocked server will stop.
 /// The server will also stop in case no more instructions are available.
 pub struct UdpServerMocker {
     listening_port: u16,
@@ -45,7 +44,8 @@ pub struct UdpServerMocker {
 ///    ServerMockerInstruction::ReceiveMessage,
 ///    ServerMockerInstruction::SendMessage(vec![4, 5, 6]),
 ///    ServerMockerInstruction::StopExchange,
-/// ].as_slice()));
+/// ].as_slice())).unwrap();
+///
 /// client.send_to(&[1, 2, 3], server_addr).unwrap();
 /// let mut buffer = [0; 3];
 /// client.recv_from(&mut buffer).unwrap();
@@ -64,9 +64,9 @@ impl ServerMocker for UdpServerMocker {
         let (error_tx, error_rx): (Sender<ServerMockerError>, Receiver<ServerMockerError>) =
             mpsc::channel();
 
-        let socket = UdpSocket::bind(format!("127.0.0.1:{}", port)).map_err(|e| {
+        let socket = UdpSocket::bind(format!("127.0.0.1:{port}")).map_err(|e| {
             ServerMockerError::new(
-                &format!("Failed to create UDP socket on port {}: {}", port, e),
+                &format!("Failed to create UDP socket on port {port}: {e}"),
                 ServerMockerErrorFatality::Fatal,
             )
         })?;
@@ -75,7 +75,7 @@ impl ServerMocker for UdpServerMocker {
             .local_addr()
             .map_err(|e| {
                 ServerMockerError::new(
-                    &format!("Failed to get local port of UDP socket: {}", e),
+                    &format!("Failed to get local port of UDP socket: {e}"),
                     ServerMockerErrorFatality::Fatal,
                 )
             })?
@@ -100,12 +100,12 @@ impl ServerMocker for UdpServerMocker {
     fn add_mock_instructions_list(
         &self,
         instructions_list: ServerMockerInstructionsList,
-    ) -> Result<(), server_mocker_error::ServerMockerError> {
+    ) -> Result<(), ServerMockerError> {
         self.instructions_sender
             .send(instructions_list)
             .map_err(|e| {
                 ServerMockerError::new(
-                    &format!("Failed to send instructions to UDP server mocker: {}", e),
+                    &format!("Failed to send instructions to UDP server mocker: {e}"),
                     ServerMockerErrorFatality::NonFatal,
                 )
             })
@@ -157,17 +157,12 @@ impl UdpServerMocker {
         // Last message received with the address of the client, used to send the response
         let mut last_received_packed_with_addr: Option<(SocketAddr, BinaryMessage)> = None;
 
-        loop {
-            // Timeout: if no more instruction is available and StopExchange hasn't been sent
-            let instructions_list = match instructions_receiver.recv_timeout(
-                std::time::Duration::from_millis(Self::DEFAULT_THREAD_RECEIVER_TIMEOUT_MS),
-            ) {
-                Ok(instructions_list) => instructions_list.instructions,
-                Err(_) => {
-                    break; // Stop server if no more instruction is available and StopExchange hasn't been sent
-                }
-            };
-            for instruction in instructions_list {
+        // Timeout: if no more instruction is available and StopExchange hasn't been sent
+        // Stop server if no more instruction is available and StopExchange hasn't been sent
+        while let Ok(instructions_list) = instructions_receiver.recv_timeout(
+            std::time::Duration::from_millis(Self::DEFAULT_THREAD_RECEIVER_TIMEOUT_MS),
+        ) {
+            for instruction in instructions_list.instructions {
                 match instruction {
                     ServerMockerInstruction::SendMessage(binary_message) => {
                         if let Err(e) = Self::send_packet_to_last_client(
@@ -247,7 +242,7 @@ impl UdpServerMocker {
             .recv_from(&mut whole_received_packet)
             .map_err(|e| {
                 ServerMockerError::new(
-                    &format!("Failed to receive message from client: {}", e),
+                    &format!("Failed to receive message from client: {e}"),
                     ServerMockerErrorFatality::NonFatal,
                 )
             })?;
@@ -272,12 +267,12 @@ impl UdpServerMocker {
             ))?;
         udp_socket
             .send_to(
-                &message_to_send,
-                last_received_packed_with_addr.as_ref().unwrap().0.clone(),
+                message_to_send,
+                last_received_packed_with_addr.as_ref().unwrap().0,
             )
             .map_err(|e| {
                 ServerMockerError::new(
-                    &format!("Failed to send message to client: {}", e),
+                    &format!("Failed to send message to client: {e}"),
                     ServerMockerErrorFatality::NonFatal,
                 )
             })?;

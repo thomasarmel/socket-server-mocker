@@ -1,11 +1,13 @@
 use socket_server_mocker::server_mocker::ServerMocker;
 use socket_server_mocker::server_mocker_error::ServerMockerErrorFatality;
-use socket_server_mocker::server_mocker_instruction::{
-    ServerMockerInstruction, ServerMockerInstructionsList,
+use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::{
+    ReceiveMessageWithMaxSize, SendMessage, SendMessageDependingOnLastReceivedMessage,
 };
+use socket_server_mocker::server_mocker_instruction::ServerMockerInstructionsList;
 use socket_server_mocker::udp_server_mocker;
 use socket_server_mocker::udp_server_mocker::UdpServerMocker;
 use std::net::UdpSocket;
+use std::time::Duration;
 
 #[test]
 fn test_simple_udp() {
@@ -20,28 +22,26 @@ fn test_simple_udp() {
     udp_server_mocker
         .add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(&[
             // The mocked server will first wait for the client to send a message, with max size = 32 bytes
-            ServerMockerInstruction::ReceiveMessageWithMaxSize(32),
+            ReceiveMessageWithMaxSize(32),
             // Then it will send a message to the client
-            ServerMockerInstruction::SendMessage("hello from server".as_bytes().to_vec()),
+            SendMessage("hello from server".as_bytes().to_vec()),
             // Send nothing
-            ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(|_| None),
+            SendMessageDependingOnLastReceivedMessage(|_| None),
             // Send a message to the client depending on the last received message by the mocked server
-            ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(
-                |last_received_message| {
-                    // "hello2 from client"
-                    let mut received_message_string: String =
-                        std::str::from_utf8(&last_received_message.unwrap())
-                            .unwrap()
-                            .to_string();
-                    // "hello2"
-                    received_message_string.truncate(5);
-                    Some(
-                        format!("{}2 from server", received_message_string)
-                            .as_bytes()
-                            .to_vec(),
-                    )
-                },
-            ),
+            SendMessageDependingOnLastReceivedMessage(|last_received_message| {
+                // "hello2 from client"
+                let mut received_message_string: String =
+                    std::str::from_utf8(&last_received_message.unwrap())
+                        .unwrap()
+                        .to_string();
+                // "hello2"
+                received_message_string.truncate(5);
+                Some(
+                    format!("{received_message_string}2 from server")
+                        .as_bytes()
+                        .to_vec(),
+                )
+            }),
         ]))
         .unwrap();
 
@@ -61,7 +61,7 @@ fn test_simple_udp() {
     // Check that the mocked server received the message sent by the client
     assert_eq!(
         "hello from client",
-        std::str::from_utf8(&*udp_server_mocker.pop_received_message().unwrap()).unwrap()
+        std::str::from_utf8(&udp_server_mocker.pop_received_message().unwrap()).unwrap()
     );
 
     let received_size = client_socket.recv(&mut buffer).unwrap();
@@ -94,7 +94,7 @@ fn test_try_receive_before_send() {
     udp_server_mocker
         .add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(&[
             // The mocked server will send a message before receiving anything from the client
-            ServerMockerInstruction::SendMessage("hello from server".as_bytes().to_vec()),
+            SendMessage("hello from server".as_bytes().to_vec()),
         ]))
         .unwrap();
 
@@ -125,12 +125,12 @@ fn test_receive_timeout() {
     udp_server_mocker
         .add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(&[
             // Expect to receive a message from the client
-            ServerMockerInstruction::ReceiveMessageWithMaxSize(32),
+            ReceiveMessageWithMaxSize(32),
         ]))
         .unwrap();
 
     // Wait twice the receive timeout
-    std::thread::sleep(std::time::Duration::from_millis(
+    std::thread::sleep(Duration::from_millis(
         2 * UdpServerMocker::DEFAULT_NET_TIMEOUT_MS,
     ));
 
