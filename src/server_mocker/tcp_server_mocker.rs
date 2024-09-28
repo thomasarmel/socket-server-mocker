@@ -33,15 +33,16 @@ pub struct TcpServerMocker {
 /// use std::net::TcpStream;
 /// use socket_server_mocker::server_mocker::ServerMocker;
 /// use socket_server_mocker::server_mocker_instruction::{ServerMockerInstructionsList, ServerMockerInstruction};
+/// use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::{ReceiveMessage, StopExchange};
 /// use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 ///
 /// let tcp_server_mocker = TcpServerMocker::new(1234).unwrap();
 /// let mut client = TcpStream::connect("127.0.0.1:1234").unwrap();
 ///
 /// tcp_server_mocker.add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions([
-///     ServerMockerInstruction::ReceiveMessage,
-///     ServerMockerInstruction::StopExchange,
-/// ].as_slice()));
+///     ReceiveMessage,
+///     StopExchange,
+/// ].as_slice())).unwrap();
 /// client.write_all(&[1, 2, 3]).unwrap();
 ///
 /// let mock_server_received_message = tcp_server_mocker.pop_received_message();
@@ -60,9 +61,9 @@ impl ServerMocker for TcpServerMocker {
         let (error_tx, error_rx): (Sender<ServerMockerError>, Receiver<ServerMockerError>) =
             mpsc::channel();
 
-        let tcp_listener = TcpListener::bind(format!("127.0.0.1:{}", port)).map_err(|e| {
+        let tcp_listener = TcpListener::bind(format!("127.0.0.1:{port}")).map_err(|e| {
             ServerMockerError::new(
-                &format!("Failed to bind TCP listener on port {}: {}", port, e),
+                &format!("Failed to bind TCP listener on port {port}: {e}"),
                 ServerMockerErrorFatality::Fatal,
             )
         })?;
@@ -70,7 +71,7 @@ impl ServerMocker for TcpServerMocker {
             .local_addr()
             .map_err(|e| {
                 ServerMockerError::new(
-                    &format!("Failed to get local address of TCP listener: {}", e),
+                    &format!("Failed to get local address of TCP listener: {e}"),
                     ServerMockerErrorFatality::Fatal,
                 )
             })?
@@ -82,7 +83,7 @@ impl ServerMocker for TcpServerMocker {
                 Err(_) => {
                     error_tx
                         .send(ServerMockerError::new(
-                            &format!("Failed to accept incoming client on port {}", port),
+                            &format!("Failed to accept incoming client on port {port}"),
                             ServerMockerErrorFatality::Fatal,
                         ))
                         .unwrap();
@@ -112,10 +113,7 @@ impl ServerMocker for TcpServerMocker {
             .send(instructions_list)
             .map_err(|e| {
                 ServerMockerError::new(
-                    &format!(
-                        "Failed to send instructions list to TCP server mocker: {}",
-                        e
-                    ),
+                    &format!("Failed to send instructions list to TCP server mocker: {e}"),
                     ServerMockerErrorFatality::NonFatal,
                 )
             })
@@ -165,17 +163,12 @@ impl TcpServerMocker {
         }
         let mut last_received_message: Option<BinaryMessage> = None;
 
-        loop {
-            // Timeout: if no more instruction is available and StopExchange hasn't been sent
-            let instructions_list = match instructions_receiver.recv_timeout(
-                std::time::Duration::from_millis(Self::DEFAULT_THREAD_RECEIVER_TIMEOUT_MS),
-            ) {
-                Ok(instructions_list) => instructions_list.instructions,
-                Err(_) => {
-                    break; // Stop server if no more instruction is available and StopExchange hasn't been sent
-                }
-            };
-            for instruction in instructions_list {
+        // Timeout: if no more instruction is available and StopExchange hasn't been sent
+        // Stop server if no more instruction is available and StopExchange hasn't been sent
+        while let Ok(instructions_list) = instructions_receiver.recv_timeout(
+            std::time::Duration::from_millis(Self::DEFAULT_THREAD_RECEIVER_TIMEOUT_MS),
+        ) {
+            for instruction in instructions_list.instructions {
                 match instruction {
                     ServerMockerInstruction::SendMessage(binary_message) => {
                         if let Err(e) = Self::send_packet(&mut tcp_stream, &binary_message) {
@@ -234,7 +227,7 @@ impl TcpServerMocker {
         loop {
             let bytes_read = tcp_stream.read(&mut buffer).map_err(|e| {
                 ServerMockerError::new(
-                    &format!("Failed to read from TCP stream: {}", e),
+                    &format!("Failed to read from TCP stream: {e}"),
                     ServerMockerErrorFatality::NonFatal,
                 )
             })?;
@@ -250,9 +243,9 @@ impl TcpServerMocker {
         tcp_stream: &mut TcpStream,
         packet: &BinaryMessage,
     ) -> Result<(), ServerMockerError> {
-        tcp_stream.write_all(&packet).map_err(|e| {
+        tcp_stream.write_all(packet).map_err(|e| {
             ServerMockerError::new(
-                &format!("Failed to write to TCP stream: {}", e),
+                &format!("Failed to write to TCP stream: {e}"),
                 ServerMockerErrorFatality::NonFatal,
             )
         })

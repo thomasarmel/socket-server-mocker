@@ -5,20 +5,21 @@
 //! #Example
 //! Mock a HTTP server:
 //! ```
+//! use std::str::from_utf8;
 //! use socket_server_mocker::server_mocker::ServerMocker;
-//! use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction;
+//! use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::{ReceiveMessage, SendMessage, StopExchange};
 //! use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 //!
 //! // Mock HTTP server on a random free port
 //! let http_server_mocker = TcpServerMocker::new(0).unwrap();
 //!
 //! http_server_mocker.add_mock_instructions(&[
-//! // Wait for a HTTP GET request
-//! ServerMockerInstruction::ReceiveMessage,
+//!   // Wait for a HTTP GET request
+//!   ReceiveMessage,
 //!   // Send a HTTP response
-//!   ServerMockerInstruction::SendMessage("HTTP/1.1 200 OK\r\nServer: socket-server-mocker-fake-http\r\nContent-Length: 12\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nHello, world".as_bytes().to_vec()),
+//!   SendMessage("HTTP/1.1 200 OK\r\nServer: socket-server-mocker-fake-http\r\nContent-Length: 12\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nHello, world".as_bytes().to_vec()),
 //!   // Close the connection
-//!   ServerMockerInstruction::StopExchange,
+//!   StopExchange,
 //! ]).unwrap();
 //!
 //! // New reqwest blocking client
@@ -43,7 +44,7 @@
 //!     "GET / HTTP/1.1\r\naccept: */*\r\nhost: localhost:{}\r\n\r\n",
 //!     http_server_mocker.listening_port()
 //!     ),
-//!     std::str::from_utf8(&*http_server_mocker.pop_received_message().unwrap()).unwrap()
+//!     from_utf8(&*http_server_mocker.pop_received_message().unwrap()).unwrap()
 //!   );
 //!
 //! // Check that no error has been raised by the mocked server

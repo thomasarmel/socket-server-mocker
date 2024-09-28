@@ -1,7 +1,8 @@
 use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_instruction::{
-    ServerMockerInstruction, ServerMockerInstructionsList,
+use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::{
+    ReceiveMessage, StopExchange,
 };
+use socket_server_mocker::server_mocker_instruction::ServerMockerInstructionsList;
 use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 use std::io::Write;
 use std::net::TcpStream;
@@ -13,11 +14,7 @@ fn simple_receiving_message_test() {
 
     tcp_server_mocker
         .add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(
-            [
-                ServerMockerInstruction::ReceiveMessage,
-                ServerMockerInstruction::StopExchange,
-            ]
-            .as_slice(),
+            [ReceiveMessage, StopExchange].as_slice(),
         ))
         .unwrap();
     client.write_all(&[1, 2, 3]).unwrap();

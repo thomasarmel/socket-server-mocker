@@ -1,4 +1,4 @@
-//! # server_mocker_instruction
+//! # `server_mocker_instruction`
 //!
 //! Instructions sent by the testing code to the mocked server.
 
@@ -55,7 +55,7 @@ pub struct ServerMockerInstructionsList {
     pub(crate) instructions: Vec<ServerMockerInstruction>,
 }
 
-/// Creates a new ServerMockerInstructionsList with the given instructions
+/// Creates a new `ServerMockerInstructionsList` with the given instructions
 ///
 /// # Example
 /// ```
@@ -67,16 +67,16 @@ pub struct ServerMockerInstructionsList {
 /// instructions_list.add_stop_exchange();
 /// ```
 impl ServerMockerInstructionsList {
-    /// Creates a new ServerMockerInstructionsList without instruction
+    /// Creates a new `ServerMockerInstructionsList` without instruction
     pub fn new() -> ServerMockerInstructionsList {
         ServerMockerInstructionsList {
             instructions: Vec::new(),
         }
     }
 
-    /// Creates a new ServerMockerInstructionsList with the given instructions
+    /// Creates a new `ServerMockerInstructionsList` with the given instructions
     ///
-    /// Takes a slice of ServerMockerInstruction and clone it into the new ServerMockerInstructionsList
+    /// Takes a slice of `ServerMockerInstruction` and clone it into the new `ServerMockerInstructionsList`
     pub fn new_with_instructions(
         instructions: &[ServerMockerInstruction],
     ) -> ServerMockerInstructionsList {
@@ -89,7 +89,7 @@ impl ServerMockerInstructionsList {
     ///
     /// Takes self as a mutable reference
     ///
-    /// Message is given as a [BinaryMessage](BinaryMessage)
+    /// Message is given as a [`BinaryMessage`]
     pub fn add_send_message(&mut self, message: BinaryMessage) {
         self.instructions
             .push(ServerMockerInstruction::SendMessage(message));
@@ -97,9 +97,9 @@ impl ServerMockerInstructionsList {
 
     /// Add instruction for sending a message to the client
     ///
-    /// Takes ownership of self and returns a new ServerMockerInstructionsList
+    /// Takes ownership of self and returns a new `ServerMockerInstructionsList`
     ///
-    /// Message is given as a [BinaryMessage](BinaryMessage)
+    /// Message is given as a [`BinaryMessage`]
     pub fn with_added_send_message(mut self, message: BinaryMessage) -> Self {
         self.add_send_message(message);
         self
