@@ -1,3 +1,4 @@
+#![doc = include_str!("../README.md")]
 //! # socket-server-mocker
 //!
 //! `socket-server-mocker` is a library to mock a socket server.
