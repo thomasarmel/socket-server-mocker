@@ -2,7 +2,7 @@
 //!
 //! Mock a TCP server for testing application that connect to external TCP server.
 
-use crate::server_mocker::ServerMocker;
+use crate::server_mocker::{ServerMocker};
 use crate::server_mocker_error::{ServerMockerError, ServerMockerErrorFatality};
 use crate::server_mocker_instruction::{
     BinaryMessage, ServerMockerInstruction, ServerMockerInstructionsList,
@@ -19,39 +19,18 @@ use std::thread;
 ///
 /// Only 1 client can be connected to the mocked server. When the connection is closed, the mocked server will stop.
 pub struct TcpServerMocker {
-    listening_port: u16,
+    port: u16,
     instructions_sender: Sender<ServerMockerInstructionsList>,
     message_receiver: Receiver<BinaryMessage>,
     error_receiver: Receiver<ServerMockerError>,
 }
 
-/// TcpServerMocker implementation
-///
-/// # Example
-/// ```
-/// use std::io::Write;
-/// use std::net::TcpStream;
-/// use socket_server_mocker::server_mocker::ServerMocker;
-/// use socket_server_mocker::server_mocker_instruction::{ServerMockerInstructionsList, ServerMockerInstruction};
-/// use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::{ReceiveMessage, StopExchange};
-/// use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
-///
-/// let tcp_server_mocker = TcpServerMocker::new(1234).unwrap();
-/// let mut client = TcpStream::connect("127.0.0.1:1234").unwrap();
-///
-/// tcp_server_mocker.add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions([
-///     ReceiveMessage,
-///     StopExchange,
-/// ].as_slice())).unwrap();
-/// client.write_all(&[1, 2, 3]).unwrap();
-///
-/// let mock_server_received_message = tcp_server_mocker.pop_received_message();
-/// assert_eq!(Some(vec![1, 2, 3]), mock_server_received_message);
-/// assert!(tcp_server_mocker.pop_server_error().is_none());
-/// assert!(tcp_server_mocker.pop_server_error().is_none());
-/// ```
-impl ServerMocker for TcpServerMocker {
-    fn new(port: u16) -> Result<Self, ServerMockerError> {
+impl TcpServerMocker {
+   pub  fn new() -> Result<Self, ServerMockerError> {
+        Self::new_with_port(0)
+   }
+
+   pub  fn new_with_port(port: u16) -> Result<Self, ServerMockerError> {
         let (instruction_tx, instruction_rx): (
             Sender<ServerMockerInstructionsList>,
             Receiver<ServerMockerInstructionsList>,
@@ -94,15 +73,42 @@ impl ServerMocker for TcpServerMocker {
         });
 
         Ok(Self {
-            listening_port: port,
+            port: port,
             instructions_sender: instruction_tx,
             message_receiver: message_rx,
             error_receiver: error_rx,
         })
     }
+}
 
-    fn listening_port(&self) -> u16 {
-        self.listening_port
+/// TcpServerMocker implementation
+///
+/// # Example
+/// ```
+/// use std::io::Write;
+/// use std::net::TcpStream;
+/// use socket_server_mocker::server_mocker::ServerMocker;
+/// use socket_server_mocker::server_mocker_instruction::{ServerMockerInstructionsList, ServerMockerInstruction};
+/// use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::{ReceiveMessage, StopExchange};
+/// use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
+///
+/// let tcp_server_mocker = TcpServerMocker::new_with_port(1234).unwrap();
+/// let mut client = TcpStream::connect("127.0.0.1:1234").unwrap();
+///
+/// tcp_server_mocker.add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions([
+///     ReceiveMessage,
+///     StopExchange,
+/// ].as_slice())).unwrap();
+/// client.write_all(&[1, 2, 3]).unwrap();
+///
+/// let mock_server_received_message = tcp_server_mocker.pop_received_message();
+/// assert_eq!(Some(vec![1, 2, 3]), mock_server_received_message);
+/// assert!(tcp_server_mocker.pop_server_error().is_none());
+/// assert!(tcp_server_mocker.pop_server_error().is_none());
+/// ```
+impl ServerMocker for TcpServerMocker {
+    fn port(&self) -> u16 {
+        self.port
     }
 
     fn add_mock_instructions_list(

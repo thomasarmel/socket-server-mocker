@@ -14,7 +14,7 @@ use std::time::Duration;
 #[test]
 fn test_simple_tcp() {
     // Mock a TCP server listening on port 35642. Note that the mock will only listen on the local interface.
-    let tcp_server_mocker = TcpServerMocker::new(35642).unwrap();
+    let tcp_server_mocker = TcpServerMocker::new_with_port(35642).unwrap();
 
     // Create the TCP client to test
     let mut client = TcpStream::connect("127.0.0.1:35642").unwrap();
@@ -96,9 +96,9 @@ fn test_simple_tcp() {
 #[test]
 fn test_try_listen_twice_on_same_port() {
     // First TcpServerMocker will listen on a random free port
-    let tcp_server_mocker = TcpServerMocker::new(0).unwrap();
+    let tcp_server_mocker = TcpServerMocker::new().unwrap();
     // Second TcpServerMocker will try to listen on the same port
-    let tcp_server_mocker2 = TcpServerMocker::new(tcp_server_mocker.listening_port());
+    let tcp_server_mocker2 = TcpServerMocker::new_with_port(tcp_server_mocker.port());
     // The second TcpServerMocker should fail to listen on the same port
     assert!(tcp_server_mocker2.is_err());
 }
@@ -106,11 +106,11 @@ fn test_try_listen_twice_on_same_port() {
 #[test]
 fn test_receive_timeout() {
     // Mock a TCP server listening on a random free port
-    let tcp_server_mocker = TcpServerMocker::new(0).unwrap();
+    let tcp_server_mocker = TcpServerMocker::new().unwrap();
 
     // Create the TCP client to test
     let _client =
-        TcpStream::connect(format!("127.0.0.1:{}", tcp_server_mocker.listening_port())).unwrap();
+        TcpStream::connect(format!("127.0.0.1:{}", tcp_server_mocker.port())).unwrap();
 
     // Mocked server behavior
     tcp_server_mocker

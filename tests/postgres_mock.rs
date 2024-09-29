@@ -17,7 +17,7 @@ use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 #[test]
 fn postgres_insert_mock() {
     // Mock PostgreSQL server on a port 54321 (default PostgresSQL port is 5432)
-    let postgres_server_mocker = TcpServerMocker::new(54321).unwrap();
+    let postgres_server_mocker = TcpServerMocker::new_with_port(54321).unwrap();
 
     // Add mock binary messages corresponding to client connection and authentication
     postgres_server_mocker
@@ -116,7 +116,7 @@ fn postgres_insert_mock() {
 #[test]
 fn postgres_select_mock() {
     // Mock PostgreSQL server on a random free port (default PostgresSQL port is 5432)
-    let postgres_server_mocker = TcpServerMocker::new(0).unwrap();
+    let postgres_server_mocker = TcpServerMocker::new().unwrap();
 
     // Add mock binary messages corresponding to client connection and authentication
     postgres_server_mocker
@@ -165,7 +165,7 @@ fn postgres_select_mock() {
     let mut client = Client::connect(
         &format!(
             "host=localhost user=admin password=password dbname=mockeddatabase port={}",
-            postgres_server_mocker.listening_port()
+            postgres_server_mocker.port()
         ),
         NoTls,
     )

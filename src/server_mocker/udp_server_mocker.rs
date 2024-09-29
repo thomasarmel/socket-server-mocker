@@ -20,41 +20,18 @@ use std::thread;
 /// When the object is dropped or a [stop instruction](ServerMockerInstruction::StopExchange) is received, the mocked server will stop.
 /// The server will also stop in case no more instructions are available.
 pub struct UdpServerMocker {
-    listening_port: u16,
+    port: u16,
     instructions_sender: Sender<ServerMockerInstructionsList>,
     message_receiver: Receiver<BinaryMessage>,
     error_receiver: Receiver<ServerMockerError>,
 }
 
-/// UdpServerMocker implementation
-///
-/// # Example
-/// ```
-/// use std::net::{SocketAddr, UdpSocket};
-/// use socket_server_mocker::server_mocker::ServerMocker;
-/// use socket_server_mocker::server_mocker_instruction::{ServerMockerInstructionsList, ServerMockerInstruction};
-/// use socket_server_mocker::udp_server_mocker::UdpServerMocker;
-///
-/// // 0 = random port
-/// let udp_server_mocker = UdpServerMocker::new(0).unwrap();
-/// let mut client = UdpSocket::bind("127.0.0.1:0").unwrap();
-/// let server_addr = SocketAddr::from(([127, 0, 0, 1], udp_server_mocker.listening_port()));
-///
-/// udp_server_mocker.add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions([
-///    ServerMockerInstruction::ReceiveMessage,
-///    ServerMockerInstruction::SendMessage(vec![4, 5, 6]),
-///    ServerMockerInstruction::StopExchange,
-/// ].as_slice())).unwrap();
-///
-/// client.send_to(&[1, 2, 3], server_addr).unwrap();
-/// let mut buffer = [0; 3];
-/// client.recv_from(&mut buffer).unwrap();
-/// assert_eq!([4, 5, 6], buffer);
-/// assert_eq!(Some(vec![1, 2, 3]), udp_server_mocker.pop_received_message());
-/// assert!(udp_server_mocker.pop_server_error().is_none());
-/// ```
-impl ServerMocker for UdpServerMocker {
-    fn new(port: u16) -> Result<Self, ServerMockerError> {
+impl UdpServerMocker {
+    pub fn new() -> Result<Self, ServerMockerError> {
+        Self::new_with_port(0)
+    }
+
+    pub fn new_with_port(port: u16) -> Result<Self, ServerMockerError> {
         let (instruction_tx, instruction_rx): (
             Sender<ServerMockerInstructionsList>,
             Receiver<ServerMockerInstructionsList>,
@@ -86,15 +63,44 @@ impl ServerMocker for UdpServerMocker {
         });
 
         Ok(Self {
-            listening_port: port,
+            port: port,
             instructions_sender: instruction_tx,
             message_receiver: message_rx,
             error_receiver: error_rx,
         })
     }
+}
 
-    fn listening_port(&self) -> u16 {
-        self.listening_port
+/// UdpServerMocker implementation
+///
+/// # Example
+/// ```
+/// use std::net::{SocketAddr, UdpSocket};
+/// use socket_server_mocker::server_mocker::ServerMocker;
+/// use socket_server_mocker::server_mocker_instruction::{ServerMockerInstructionsList, ServerMockerInstruction};
+/// use socket_server_mocker::udp_server_mocker::UdpServerMocker;
+///
+/// // 0 = random port
+/// let udp_server_mocker = UdpServerMocker::new().unwrap();
+/// let mut client = UdpSocket::bind("127.0.0.1:0").unwrap();
+/// let server_addr = SocketAddr::from(([127, 0, 0, 1], udp_server_mocker.port()));
+///
+/// udp_server_mocker.add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions([
+///    ServerMockerInstruction::ReceiveMessage,
+///    ServerMockerInstruction::SendMessage(vec![4, 5, 6]),
+///    ServerMockerInstruction::StopExchange,
+/// ].as_slice())).unwrap();
+///
+/// client.send_to(&[1, 2, 3], server_addr).unwrap();
+/// let mut buffer = [0; 3];
+/// client.recv_from(&mut buffer).unwrap();
+/// assert_eq!([4, 5, 6], buffer);
+/// assert_eq!(Some(vec![1, 2, 3]), udp_server_mocker.pop_received_message());
+/// assert!(udp_server_mocker.pop_server_error().is_none());
+/// ```
+impl ServerMocker for UdpServerMocker {
+    fn port(&self) -> u16 {
+        self.port
     }
 
     fn add_mock_instructions_list(

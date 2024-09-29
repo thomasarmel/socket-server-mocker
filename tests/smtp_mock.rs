@@ -9,7 +9,7 @@ use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 #[test]
 fn test_smtp_mock() {
     // Create a SMTP TCP server mocker listening on port 2525 (SMTP default port is 25)
-    let smtp_server_mocker = TcpServerMocker::new(2525).unwrap();
+    let smtp_server_mocker = TcpServerMocker::new_with_port(2525).unwrap();
 
     // Mocked server behavior
     smtp_server_mocker.add_mock_instructions(&[

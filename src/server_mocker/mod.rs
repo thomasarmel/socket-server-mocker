@@ -25,29 +25,12 @@ pub trait ServerMocker {
     /// Timeout if no more instruction is available and [`ServerMockerInstruction::StopExchange`] hasn't been sent
     const DEFAULT_THREAD_RECEIVER_TIMEOUT_MS: u64 = 100;
 
-    /// Creates a new server mocker
-    ///
-    /// # Arguments
-    /// port - the port to listen on, should be the same as the port the application you want to test uses to connect to the server
-    ///
-    /// Will listen on the local interface, port should not be used by another listening application
-    ///
-    /// Note that only 1 client will be able to connect to the server in case you use TCP, and the messages that the server send back to the client will be sent to the last client that sent to the server.
-    ///
-    /// If port is set to 0, the OS will choose a free port. Then you can get the port with [`Self::listening_port`]
-    ///
-    /// # Panics
-    /// Will panic in case of error with thread channel
-    fn new(port: u16) -> Result<Self, ServerMockerError>
-    where
-        Self: Sized;
-
     /// Returns the port on which the mock server is listening
     ///
     /// Listen only on local interface
     ///
     /// Port should not be used by another listening process
-    fn listening_port(&self) -> u16;
+    fn port(&self) -> u16;
 
     /// Adds a list of instructions to the server mocker
     ///

@@ -9,7 +9,7 @@ use std::net::TcpStream;
 
 #[test]
 fn simple_receiving_message_test() {
-    let tcp_server_mocker = TcpServerMocker::new(1234).unwrap();
+    let tcp_server_mocker = TcpServerMocker::new_with_port(1234).unwrap();
     let mut client = TcpStream::connect("127.0.0.1:1234").unwrap();
 
     tcp_server_mocker

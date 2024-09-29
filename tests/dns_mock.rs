@@ -11,7 +11,7 @@ use trust_dns_client::udp::UdpClientConnection;
 
 #[test]
 fn test_dns_mock() {
-    let dns_server_mocker = UdpServerMocker::new(0).unwrap();
+    let dns_server_mocker = UdpServerMocker::new().unwrap();
 
     dns_server_mocker
         .add_mock_instructions(&[
@@ -137,7 +137,7 @@ fn test_dns_mock() {
         ])
         .unwrap();
 
-    let address = format!("127.0.0.1:{}", dns_server_mocker.listening_port())
+    let address = format!("127.0.0.1:{}", dns_server_mocker.port())
         .parse()
         .unwrap();
     let conn = UdpClientConnection::new(address).unwrap();

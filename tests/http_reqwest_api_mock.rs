@@ -7,7 +7,7 @@ use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 #[test]
 fn http_get() {
     // Mock HTTP server on a random free port
-    let http_server_mocker = TcpServerMocker::new(0).unwrap();
+    let http_server_mocker = TcpServerMocker::new().unwrap();
 
     http_server_mocker.add_mock_instructions(&[
         // Wait for a HTTP GET request
@@ -24,7 +24,7 @@ fn http_get() {
     let response = client
         .get(format!(
             "http://localhost:{}/",
-            http_server_mocker.listening_port()
+            http_server_mocker.port()
         ))
         .send()
         .unwrap();
@@ -38,7 +38,7 @@ fn http_get() {
     assert_eq!(
         format!(
             "GET / HTTP/1.1\r\naccept: */*\r\nhost: localhost:{}\r\n\r\n",
-            http_server_mocker.listening_port()
+            http_server_mocker.port()
         ),
         std::str::from_utf8(&http_server_mocker.pop_received_message().unwrap()).unwrap()
     );
