@@ -23,12 +23,17 @@ pub trait ServerMocker {
     /// Timeout if no more instruction is available and [`Instruction::StopExchange`] hasn't been sent
     const DEFAULT_THREAD_RECEIVER_TIMEOUT_MS: u64 = 100;
 
+    /// Returns the socket address on which the mock server is listening
+    fn socket_address(&self) -> std::net::SocketAddr;
+
     /// Returns the port on which the mock server is listening
     ///
     /// Listen only on local interface
     ///
     /// Port should not be used by another listening process
-    fn port(&self) -> u16;
+    fn port(&self) -> u16 {
+        self.socket_address().port()
+    }
 
     /// Adds a slice of instructions to the server mocker
     ///

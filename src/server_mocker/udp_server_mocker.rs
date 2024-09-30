@@ -21,7 +21,7 @@ use std::thread;
 /// When the object is dropped or a [stop instruction](Instruction::StopExchange) is received, the mocked server will stop.
 /// The server will also stop in case no more instructions are available.
 pub struct UdpServerMocker {
-    port: u16,
+    socket_addr: SocketAddr,
     instructions_sender: Sender<Vec<Instruction>>,
     message_receiver: Receiver<BinaryMessage>,
     error_receiver: Receiver<ServerMockerError>,
@@ -46,29 +46,27 @@ impl UdpServerMocker {
         let (error_tx, error_rx): (Sender<ServerMockerError>, Receiver<ServerMockerError>) =
             mpsc::channel();
 
-        let socket = UdpSocket::bind(format!("127.0.0.1:{port}")).map_err(|e| {
+        let addr: SocketAddr = ([127, 0, 0, 1], port).into();
+        let socket = UdpSocket::bind(addr).map_err(|e| {
             ServerMockerError::new(
                 &format!("Failed to create UDP socket on port {port}: {e}"),
                 ServerMockerErrorFatality::Fatal,
             )
         })?;
 
-        let port = socket
-            .local_addr()
-            .map_err(|e| {
-                ServerMockerError::new(
-                    &format!("Failed to get local port of UDP socket: {e}"),
-                    ServerMockerErrorFatality::Fatal,
-                )
-            })?
-            .port();
+        let socket_addr = socket.local_addr().map_err(|e| {
+            ServerMockerError::new(
+                &format!("Failed to get local port of UDP socket: {e}"),
+                ServerMockerErrorFatality::Fatal,
+            )
+        })?;
 
         thread::spawn(move || {
             Self::handle_dgram_stream(socket, instruction_rx, message_tx, error_tx);
         });
 
         Ok(Self {
-            port,
+            socket_addr,
             instructions_sender: instruction_tx,
             message_receiver: message_rx,
             error_receiver: error_rx,
@@ -104,8 +102,8 @@ impl UdpServerMocker {
 /// assert!(udp_server_mocker.pop_server_error().is_none());
 /// ```
 impl ServerMocker for UdpServerMocker {
-    fn port(&self) -> u16 {
-        self.port
+    fn socket_address(&self) -> SocketAddr {
+        self.socket_addr
     }
 
     fn add_mock_instructions(

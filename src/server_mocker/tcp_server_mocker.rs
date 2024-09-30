@@ -6,7 +6,7 @@ use crate::server_mocker::ServerMocker;
 use crate::server_mocker_error::{ServerMockerError, ServerMockerErrorFatality};
 use crate::server_mocker_instruction::{BinaryMessage, Instruction};
 use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
@@ -17,7 +17,7 @@ use std::thread;
 ///
 /// Only 1 client can be connected to the mocked server. When the connection is closed, the mocked server will stop.
 pub struct TcpServerMocker {
-    port: u16,
+    socket_addr: SocketAddr,
     instructions_sender: Sender<Vec<Instruction>>,
     message_receiver: Receiver<BinaryMessage>,
     error_receiver: Receiver<ServerMockerError>,
@@ -42,21 +42,20 @@ impl TcpServerMocker {
         let (error_tx, error_rx): (Sender<ServerMockerError>, Receiver<ServerMockerError>) =
             mpsc::channel();
 
-        let tcp_listener = TcpListener::bind(format!("127.0.0.1:{port}")).map_err(|e| {
+        let addr: SocketAddr = ([127, 0, 0, 1], port).into();
+        let tcp_listener = TcpListener::bind(addr).map_err(|e| {
             ServerMockerError::new(
                 &format!("Failed to bind TCP listener on port {port}: {e}"),
                 ServerMockerErrorFatality::Fatal,
             )
         })?;
-        let port = tcp_listener
-            .local_addr()
-            .map_err(|e| {
-                ServerMockerError::new(
-                    &format!("Failed to get local address of TCP listener: {e}"),
-                    ServerMockerErrorFatality::Fatal,
-                )
-            })?
-            .port();
+
+        let socket_addr = tcp_listener.local_addr().map_err(|e| {
+            ServerMockerError::new(
+                &format!("Failed to get local address of TCP listener: {e}"),
+                ServerMockerErrorFatality::Fatal,
+            )
+        })?;
 
         thread::spawn(move || {
             let tcp_stream = match tcp_listener.accept() {
@@ -75,7 +74,7 @@ impl TcpServerMocker {
         });
 
         Ok(Self {
-            port,
+            socket_addr,
             instructions_sender: instruction_tx,
             message_receiver: message_rx,
             error_receiver: error_rx,
@@ -109,8 +108,8 @@ impl TcpServerMocker {
 /// assert!(tcp_server_mocker.pop_server_error().is_none());
 /// ```
 impl ServerMocker for TcpServerMocker {
-    fn port(&self) -> u16 {
-        self.port
+    fn socket_address(&self) -> SocketAddr {
+        self.socket_addr
     }
 
     fn add_mock_instructions(
