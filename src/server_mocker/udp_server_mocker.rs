@@ -4,9 +4,10 @@
 
 use crate::server_mocker::ServerMocker;
 use crate::server_mocker_error::{ServerMockerError, ServerMockerErrorFatality};
-use crate::server_mocker_instruction::{
-    BinaryMessage, ServerMockerInstruction, ServerMockerInstructionsList,
+use crate::server_mocker_instruction::Instruction::{
+    ReceiveMessageWithMaxSize, SendMessage, SendMessageDependingOnLastReceivedMessage,
 };
+use crate::server_mocker_instruction::{BinaryMessage, Instruction};
 use std::net::{SocketAddr, UdpSocket};
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -17,11 +18,11 @@ use std::thread;
 /// Can be used to mock a UDP server if the application you want to test uses UDP sockets to connect to a server.
 ///
 /// It's preferable that only 1 client sends messages to the mocked server.
-/// When the object is dropped or a [stop instruction](ServerMockerInstruction::StopExchange) is received, the mocked server will stop.
+/// When the object is dropped or a [stop instruction](Instruction::StopExchange) is received, the mocked server will stop.
 /// The server will also stop in case no more instructions are available.
 pub struct UdpServerMocker {
     port: u16,
-    instructions_sender: Sender<ServerMockerInstructionsList>,
+    instructions_sender: Sender<Vec<Instruction>>,
     message_receiver: Receiver<BinaryMessage>,
     error_receiver: Receiver<ServerMockerError>,
 }
@@ -33,8 +34,8 @@ impl UdpServerMocker {
 
     pub fn new_with_port(port: u16) -> Result<Self, ServerMockerError> {
         let (instruction_tx, instruction_rx): (
-            Sender<ServerMockerInstructionsList>,
-            Receiver<ServerMockerInstructionsList>,
+            Sender<Vec<Instruction>>,
+            Receiver<Vec<Instruction>>,
         ) = mpsc::channel();
         let (message_tx, message_rx): (Sender<BinaryMessage>, Receiver<BinaryMessage>) =
             mpsc::channel();
@@ -63,7 +64,7 @@ impl UdpServerMocker {
         });
 
         Ok(Self {
-            port: port,
+            port,
             instructions_sender: instruction_tx,
             message_receiver: message_rx,
             error_receiver: error_rx,
@@ -77,19 +78,19 @@ impl UdpServerMocker {
 /// ```
 /// use std::net::{SocketAddr, UdpSocket};
 /// use socket_server_mocker::server_mocker::ServerMocker;
-/// use socket_server_mocker::server_mocker_instruction::{ServerMockerInstructionsList, ServerMockerInstruction};
+/// use socket_server_mocker::server_mocker_instruction::Instruction::{ReceiveMessage, SendMessage, StopExchange};
 /// use socket_server_mocker::udp_server_mocker::UdpServerMocker;
 ///
-/// // 0 = random port
 /// let udp_server_mocker = UdpServerMocker::new().unwrap();
+/// // 0 = random port
 /// let mut client = UdpSocket::bind("127.0.0.1:0").unwrap();
 /// let server_addr = SocketAddr::from(([127, 0, 0, 1], udp_server_mocker.port()));
 ///
-/// udp_server_mocker.add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions([
-///    ServerMockerInstruction::ReceiveMessage,
-///    ServerMockerInstruction::SendMessage(vec![4, 5, 6]),
-///    ServerMockerInstruction::StopExchange,
-/// ].as_slice())).unwrap();
+/// udp_server_mocker.add_mock_instructions(vec![
+///    ReceiveMessage,
+///    SendMessage(vec![4, 5, 6]),
+///    StopExchange,
+/// ]).unwrap();
 ///
 /// client.send_to(&[1, 2, 3], server_addr).unwrap();
 /// let mut buffer = [0; 3];
@@ -103,18 +104,16 @@ impl ServerMocker for UdpServerMocker {
         self.port
     }
 
-    fn add_mock_instructions_list(
+    fn add_mock_instructions(
         &self,
-        instructions_list: ServerMockerInstructionsList,
+        instructions: Vec<Instruction>,
     ) -> Result<(), ServerMockerError> {
-        self.instructions_sender
-            .send(instructions_list)
-            .map_err(|e| {
-                ServerMockerError::new(
-                    &format!("Failed to send instructions to UDP server mocker: {e}"),
-                    ServerMockerErrorFatality::NonFatal,
-                )
-            })
+        self.instructions_sender.send(instructions).map_err(|e| {
+            ServerMockerError::new(
+                &format!("Failed to send instructions to UDP server mocker: {e}"),
+                ServerMockerErrorFatality::NonFatal,
+            )
+        })
     }
 
     fn pop_received_message(&self) -> Option<BinaryMessage> {
@@ -141,7 +140,7 @@ impl UdpServerMocker {
 
     fn handle_dgram_stream(
         udp_socket: UdpSocket,
-        instructions_receiver: Receiver<ServerMockerInstructionsList>,
+        instructions_receiver: Receiver<Vec<Instruction>>,
         message_sender: Sender<BinaryMessage>,
         error_sender: Sender<ServerMockerError>,
     ) {
@@ -168,9 +167,9 @@ impl UdpServerMocker {
         while let Ok(instructions_list) = instructions_receiver.recv_timeout(
             std::time::Duration::from_millis(Self::DEFAULT_THREAD_RECEIVER_TIMEOUT_MS),
         ) {
-            for instruction in instructions_list.instructions {
+            for instruction in instructions_list {
                 match instruction {
-                    ServerMockerInstruction::SendMessage(binary_message) => {
+                    SendMessage(binary_message) => {
                         if let Err(e) = Self::send_packet_to_last_client(
                             &udp_socket,
                             &binary_message,
@@ -179,9 +178,7 @@ impl UdpServerMocker {
                             error_sender.send(e).unwrap();
                         }
                     }
-                    ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(
-                        sent_message_calculator,
-                    ) => {
+                    SendMessageDependingOnLastReceivedMessage(sent_message_calculator) => {
                         // Pass None if no message has been received yet
                         let message_to_send =
                             sent_message_calculator(match last_received_packed_with_addr {
@@ -198,7 +195,7 @@ impl UdpServerMocker {
                             }
                         }
                     }
-                    ServerMockerInstruction::ReceiveMessage => {
+                    Instruction::ReceiveMessage => {
                         let received_packet_with_addr =
                             match Self::receive_packet(&udp_socket, Self::MAX_UDP_PACKET_SIZE) {
                                 Ok(received) => received,
@@ -214,7 +211,7 @@ impl UdpServerMocker {
                         ));
                         message_sender.send(received_packet_with_addr.1).unwrap();
                     }
-                    ServerMockerInstruction::ReceiveMessageWithMaxSize(max_message_size) => {
+                    ReceiveMessageWithMaxSize(max_message_size) => {
                         let received_packet_with_addr =
                             match Self::receive_packet(&udp_socket, max_message_size) {
                                 Ok(received) => received,
@@ -230,7 +227,7 @@ impl UdpServerMocker {
                         ));
                         message_sender.send(received_packet_with_addr.1).unwrap();
                     }
-                    ServerMockerInstruction::StopExchange => {
+                    Instruction::StopExchange => {
                         return;
                     }
                 }

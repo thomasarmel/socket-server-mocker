@@ -1,7 +1,7 @@
 use lettre::transport::smtp::client::Tls;
 use lettre::{Message, SmtpTransport, Transport};
 use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::{
+use socket_server_mocker::server_mocker_instruction::Instruction::{
     ReceiveMessage, SendMessage, StopExchange,
 };
 use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
@@ -12,7 +12,7 @@ fn test_smtp_mock() {
     let smtp_server_mocker = TcpServerMocker::new_with_port(2525).unwrap();
 
     // Mocked server behavior
-    smtp_server_mocker.add_mock_instructions(&[
+    smtp_server_mocker.add_mock_instructions(vec![
         SendMessage("220 smtp.localhost.mock ESMTP Mocker\r\n".as_bytes().to_vec()),
         ReceiveMessage,
         SendMessage("250-smtp.localhost.mock\r\n250-PIPELINING\r\n250-SIZE 20971520\r\n250-ETRN\r\n250-STARTTLS\r\n250-ENHANCEDSTATUSCODES\r\n250 8BITMIME\r\n".as_bytes().to_vec()),

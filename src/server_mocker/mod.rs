@@ -7,9 +7,7 @@ pub mod tcp_server_mocker;
 pub mod udp_server_mocker;
 
 use crate::server_mocker_error::ServerMockerError;
-use crate::server_mocker_instruction::{
-    BinaryMessage, ServerMockerInstruction, ServerMockerInstructionsList,
-};
+use crate::server_mocker_instruction::{BinaryMessage, Instruction};
 
 /// Trait that define the behavior of a network server mocker over an IP layer.
 ///
@@ -22,7 +20,7 @@ pub trait ServerMocker {
     /// Default timeout in milliseconds for the server to wait for a message from the client.
     const DEFAULT_NET_TIMEOUT_MS: u64 = 100;
 
-    /// Timeout if no more instruction is available and [`ServerMockerInstruction::StopExchange`] hasn't been sent
+    /// Timeout if no more instruction is available and [`Instruction::StopExchange`] hasn't been sent
     const DEFAULT_THREAD_RECEIVER_TIMEOUT_MS: u64 = 100;
 
     /// Returns the port on which the mock server is listening
@@ -32,37 +30,19 @@ pub trait ServerMocker {
     /// Port should not be used by another listening process
     fn port(&self) -> u16;
 
-    /// Adds a list of instructions to the server mocker
-    ///
-    /// The server mocker will execute the instructions in the order they are added
-    ///
-    /// This function could be called as many times as you want, until the connection is closed (event by the client or the server if received a [`ServerMockerInstruction::StopExchange`] instruction)
-    ///
-    /// If you push a [`ServerMockerInstruction::SendMessage`] instruction, you must ensure that there is a client connected to the server mocker
-    ///
-    /// If you push a [`ServerMockerInstruction::ReceiveMessage`] instruction, you must ensure that the client will send a message to the server mocker within the timeout defined in [`ServerMocker::DEFAULT_NET_TIMEOUT_MS`]
-    fn add_mock_instructions_list(
-        &self,
-        instructions_list: ServerMockerInstructionsList,
-    ) -> Result<(), ServerMockerError>;
-
     /// Adds a slice of instructions to the server mocker
     ///
     /// The server mocker will execute the instructions in the order they are added
     ///
-    /// This function could be called as many times as you want, until the connection is closed (event by the client or the server if received a [`ServerMockerInstruction::StopExchange`] instruction)
+    /// This function could be called as many times as you want, until the connection is closed (event by the client or the server if received a [`Instruction::StopExchange`] instruction)
     ///
-    /// If you push a [`ServerMockerInstruction::SendMessage`] instruction, you must ensure that there is a client connected to the server mocker
+    /// If you push a [`Instruction::SendMessage`] instruction, you must ensure that there is a client connected to the server mocker
     ///
-    /// If you push a [`ServerMockerInstruction::ReceiveMessage`] instruction, you must ensure that the client will send a message to the server mocker within the timeout defined in [`ServerMocker::DEFAULT_NET_TIMEOUT_MS`]
+    /// If you push a [`Instruction::ReceiveMessage`] instruction, you must ensure that the client will send a message to the server mocker within the timeout defined in [`ServerMocker::DEFAULT_NET_TIMEOUT_MS`]
     fn add_mock_instructions(
         &self,
-        instructions: &[ServerMockerInstruction],
-    ) -> Result<(), ServerMockerError> {
-        self.add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(
-            instructions,
-        ))
-    }
+        instructions: Vec<Instruction>,
+    ) -> Result<(), ServerMockerError>;
 
     /// Return first message received by the mock server on the messages queue
     ///

@@ -1,9 +1,8 @@
 use socket_server_mocker::server_mocker::ServerMocker;
 use socket_server_mocker::server_mocker_error::ServerMockerErrorFatality;
-use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::{
+use socket_server_mocker::server_mocker_instruction::Instruction::{
     ReceiveMessageWithMaxSize, SendMessage, SendMessageDependingOnLastReceivedMessage,
 };
-use socket_server_mocker::server_mocker_instruction::ServerMockerInstructionsList;
 use socket_server_mocker::udp_server_mocker;
 use socket_server_mocker::udp_server_mocker::UdpServerMocker;
 use std::net::UdpSocket;
@@ -20,7 +19,7 @@ fn test_simple_udp() {
 
     // Mocked server behavior
     udp_server_mocker
-        .add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(&[
+        .add_mock_instructions(vec![
             // The mocked server will first wait for the client to send a message, with max size = 32 bytes
             ReceiveMessageWithMaxSize(32),
             // Then it will send a message to the client
@@ -42,7 +41,7 @@ fn test_simple_udp() {
                         .to_vec(),
                 )
             }),
-        ]))
+        ])
         .unwrap();
 
     // UDP client sends its first message
@@ -92,10 +91,10 @@ fn test_try_receive_before_send() {
 
     // Mocked server behavior
     udp_server_mocker
-        .add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(&[
+        .add_mock_instructions(vec![
             // The mocked server will send a message before receiving anything from the client
             SendMessage("hello from server".as_bytes().to_vec()),
-        ]))
+        ])
         .unwrap();
 
     let mocked_server_error_received = udp_server_mocker.pop_server_error();
@@ -123,10 +122,10 @@ fn test_receive_timeout() {
 
     // Mocked server behavior
     udp_server_mocker
-        .add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(&[
+        .add_mock_instructions(vec![
             // Expect to receive a message from the client
             ReceiveMessageWithMaxSize(32),
-        ]))
+        ])
         .unwrap();
 
     // Wait twice the receive timeout

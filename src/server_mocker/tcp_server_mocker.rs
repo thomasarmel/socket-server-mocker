@@ -2,11 +2,9 @@
 //!
 //! Mock a TCP server for testing application that connect to external TCP server.
 
-use crate::server_mocker::{ServerMocker};
+use crate::server_mocker::ServerMocker;
 use crate::server_mocker_error::{ServerMockerError, ServerMockerErrorFatality};
-use crate::server_mocker_instruction::{
-    BinaryMessage, ServerMockerInstruction, ServerMockerInstructionsList,
-};
+use crate::server_mocker_instruction::{BinaryMessage, Instruction};
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc;
@@ -20,20 +18,20 @@ use std::thread;
 /// Only 1 client can be connected to the mocked server. When the connection is closed, the mocked server will stop.
 pub struct TcpServerMocker {
     port: u16,
-    instructions_sender: Sender<ServerMockerInstructionsList>,
+    instructions_sender: Sender<Vec<Instruction>>,
     message_receiver: Receiver<BinaryMessage>,
     error_receiver: Receiver<ServerMockerError>,
 }
 
 impl TcpServerMocker {
-   pub  fn new() -> Result<Self, ServerMockerError> {
+    pub fn new() -> Result<Self, ServerMockerError> {
         Self::new_with_port(0)
-   }
+    }
 
-   pub  fn new_with_port(port: u16) -> Result<Self, ServerMockerError> {
+    pub fn new_with_port(port: u16) -> Result<Self, ServerMockerError> {
         let (instruction_tx, instruction_rx): (
-            Sender<ServerMockerInstructionsList>,
-            Receiver<ServerMockerInstructionsList>,
+            Sender<Vec<Instruction>>,
+            Receiver<Vec<Instruction>>,
         ) = mpsc::channel();
         let (message_tx, message_rx): (Sender<BinaryMessage>, Receiver<BinaryMessage>) =
             mpsc::channel();
@@ -73,7 +71,7 @@ impl TcpServerMocker {
         });
 
         Ok(Self {
-            port: port,
+            port,
             instructions_sender: instruction_tx,
             message_receiver: message_rx,
             error_receiver: error_rx,
@@ -88,17 +86,17 @@ impl TcpServerMocker {
 /// use std::io::Write;
 /// use std::net::TcpStream;
 /// use socket_server_mocker::server_mocker::ServerMocker;
-/// use socket_server_mocker::server_mocker_instruction::{ServerMockerInstructionsList, ServerMockerInstruction};
-/// use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::{ReceiveMessage, StopExchange};
+/// use socket_server_mocker::server_mocker_instruction::Instruction;
+/// use socket_server_mocker::server_mocker_instruction::Instruction::{ReceiveMessage, StopExchange};
 /// use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 ///
 /// let tcp_server_mocker = TcpServerMocker::new_with_port(1234).unwrap();
 /// let mut client = TcpStream::connect("127.0.0.1:1234").unwrap();
 ///
-/// tcp_server_mocker.add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions([
+/// tcp_server_mocker.add_mock_instructions(vec![
 ///     ReceiveMessage,
 ///     StopExchange,
-/// ].as_slice())).unwrap();
+/// ]).unwrap();
 /// client.write_all(&[1, 2, 3]).unwrap();
 ///
 /// let mock_server_received_message = tcp_server_mocker.pop_received_message();
@@ -111,18 +109,16 @@ impl ServerMocker for TcpServerMocker {
         self.port
     }
 
-    fn add_mock_instructions_list(
+    fn add_mock_instructions(
         &self,
-        instructions_list: ServerMockerInstructionsList,
+        instructions: Vec<Instruction>,
     ) -> Result<(), ServerMockerError> {
-        self.instructions_sender
-            .send(instructions_list)
-            .map_err(|e| {
-                ServerMockerError::new(
-                    &format!("Failed to send instructions list to TCP server mocker: {e}"),
-                    ServerMockerErrorFatality::NonFatal,
-                )
-            })
+        self.instructions_sender.send(instructions).map_err(|e| {
+            ServerMockerError::new(
+                &format!("Failed to send instructions list to TCP server mocker: {e}"),
+                ServerMockerErrorFatality::NonFatal,
+            )
+        })
     }
 
     fn pop_received_message(&self) -> Option<BinaryMessage> {
@@ -149,7 +145,7 @@ impl TcpServerMocker {
 
     fn handle_connection(
         mut tcp_stream: TcpStream,
-        instructions_receiver: Receiver<ServerMockerInstructionsList>,
+        instructions_receiver: Receiver<Vec<Instruction>>,
         message_sender: Sender<BinaryMessage>,
         error_sender: Sender<ServerMockerError>,
     ) {
@@ -174,14 +170,14 @@ impl TcpServerMocker {
         while let Ok(instructions_list) = instructions_receiver.recv_timeout(
             std::time::Duration::from_millis(Self::DEFAULT_THREAD_RECEIVER_TIMEOUT_MS),
         ) {
-            for instruction in instructions_list.instructions {
+            for instruction in instructions_list {
                 match instruction {
-                    ServerMockerInstruction::SendMessage(binary_message) => {
+                    Instruction::SendMessage(binary_message) => {
                         if let Err(e) = Self::send_packet(&mut tcp_stream, &binary_message) {
                             error_sender.send(e).unwrap();
                         }
                     }
-                    ServerMockerInstruction::SendMessageDependingOnLastReceivedMessage(
+                    Instruction::SendMessageDependingOnLastReceivedMessage(
                         sent_message_calculator,
                     ) => {
                         // Call the closure to get the message to send
@@ -194,7 +190,7 @@ impl TcpServerMocker {
                             }
                         }
                     }
-                    ServerMockerInstruction::ReceiveMessage => {
+                    Instruction::ReceiveMessage => {
                         let whole_received_packet = match Self::read_packet(&mut tcp_stream) {
                             Ok(whole_received_packet) => whole_received_packet,
                             Err(e) => {
@@ -205,7 +201,7 @@ impl TcpServerMocker {
                         last_received_message = Some(whole_received_packet.clone());
                         message_sender.send(whole_received_packet).unwrap();
                     }
-                    ServerMockerInstruction::ReceiveMessageWithMaxSize(max_message_size) => {
+                    Instruction::ReceiveMessageWithMaxSize(max_message_size) => {
                         let mut whole_received_packet = match Self::read_packet(&mut tcp_stream) {
                             Ok(whole_received_packet) => whole_received_packet,
                             Err(e) => {
@@ -217,7 +213,7 @@ impl TcpServerMocker {
                         last_received_message = Some(whole_received_packet.clone());
                         message_sender.send(whole_received_packet).unwrap();
                     }
-                    ServerMockerInstruction::StopExchange => {
+                    Instruction::StopExchange => {
                         return;
                     }
                 }

@@ -1,5 +1,5 @@
 use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::{
+use socket_server_mocker::server_mocker_instruction::Instruction::{
     ReceiveMessage, SendMessage, StopExchange,
 };
 use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
@@ -9,7 +9,7 @@ fn http_get() {
     // Mock HTTP server on a random free port
     let http_server_mocker = TcpServerMocker::new().unwrap();
 
-    http_server_mocker.add_mock_instructions(&[
+    http_server_mocker.add_mock_instructions(vec![
         // Wait for a HTTP GET request
         ReceiveMessage,
         // Send a HTTP response
@@ -22,10 +22,7 @@ fn http_get() {
     let client = reqwest::blocking::Client::new();
     // Send a HTTP GET request to the mocked server
     let response = client
-        .get(format!(
-            "http://localhost:{}/",
-            http_server_mocker.port()
-        ))
+        .get(format!("http://localhost:{}/", http_server_mocker.port()))
         .send()
         .unwrap();
 

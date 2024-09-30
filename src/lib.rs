@@ -1,4 +1,5 @@
 #![doc = include_str!("../README.md")]
+
 //! # socket-server-mocker
 //!
 //! `socket-server-mocker` is a library to mock a socket server.
@@ -8,13 +9,13 @@
 //! ```
 //! use std::str::from_utf8;
 //! use socket_server_mocker::server_mocker::ServerMocker;
-//! use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::{ReceiveMessage, SendMessage, StopExchange};
+//! use socket_server_mocker::server_mocker_instruction::Instruction::{ReceiveMessage, SendMessage, StopExchange};
 //! use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 //!
 //! // Mock HTTP server on a random free port
 //! let http_server_mocker = TcpServerMocker::new().unwrap();
 //!
-//! http_server_mocker.add_mock_instructions(&[
+//! http_server_mocker.add_mock_instructions(vec![
 //!   // Wait for a HTTP GET request
 //!   ReceiveMessage,
 //!   // Send a HTTP response
