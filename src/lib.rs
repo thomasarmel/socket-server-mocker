@@ -1,7 +1,6 @@
 #![doc = include_str!("../README.md")]
-
 #![forbid(unsafe_code, unused_must_use)]
-#![forbid(
+#![warn(
     missing_docs,
     unreachable_pub,
     unused_import_braces,

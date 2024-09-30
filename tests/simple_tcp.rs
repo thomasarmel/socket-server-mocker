@@ -1,5 +1,4 @@
 use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_error::ServerMockerErrorFatality;
 use socket_server_mocker::server_mocker_instruction::Instruction::{
     ReceiveMessage, ReceiveMessageWithMaxSize, SendMessage,
     SendMessageDependingOnLastReceivedMessage, StopExchange,
@@ -131,8 +130,5 @@ fn test_receive_timeout() {
     let tcp_server_error = tcp_server_mocker.pop_server_error();
     assert!(tcp_server_error.is_some());
     let tcp_server_error = tcp_server_error.unwrap();
-    assert_eq!(
-        ServerMockerErrorFatality::NonFatal,
-        tcp_server_error.fatality
-    );
+    assert!(!tcp_server_error.is_fatal());
 }

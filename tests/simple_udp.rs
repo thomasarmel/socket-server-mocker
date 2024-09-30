@@ -1,5 +1,4 @@
 use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_error::ServerMockerErrorFatality;
 use socket_server_mocker::server_mocker_instruction::Instruction::{
     ReceiveMessageWithMaxSize, SendMessage, SendMessageDependingOnLastReceivedMessage,
 };
@@ -109,10 +108,7 @@ fn test_try_receive_before_send() {
         "Non fatal: SendMessage instruction received before a ReceiveMessage",
         mocked_server_error.to_string()
     );
-    assert_eq!(
-        ServerMockerErrorFatality::NonFatal,
-        mocked_server_error.fatality
-    );
+    assert!(!mocked_server_error.is_fatal());
 }
 
 #[test]
@@ -136,8 +132,5 @@ fn test_receive_timeout() {
     // Check that the mocked server has raised an error
     let mocked_server_error_received = udp_server_mocker.pop_server_error();
     assert!(mocked_server_error_received.is_some());
-    assert_eq!(
-        ServerMockerErrorFatality::NonFatal,
-        mocked_server_error_received.unwrap().fatality
-    );
+    assert!(!mocked_server_error_received.unwrap().is_fatal());
 }
