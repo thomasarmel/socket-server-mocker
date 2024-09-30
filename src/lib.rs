@@ -1,5 +1,13 @@
 #![doc = include_str!("../README.md")]
 
+#![forbid(unsafe_code, unused_must_use)]
+#![forbid(
+    missing_docs,
+    unreachable_pub,
+    unused_import_braces,
+    unused_extern_crates
+)]
+
 //! # socket-server-mocker
 //!
 //! `socket-server-mocker` is a library to mock a socket server.

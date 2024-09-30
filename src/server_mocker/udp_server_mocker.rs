@@ -28,10 +28,14 @@ pub struct UdpServerMocker {
 }
 
 impl UdpServerMocker {
+    /// Create a new instance of the UDP server mocker on a random free port.
+    /// The port can be retrieved with the [ServerMocker::port] method.
     pub fn new() -> Result<Self, ServerMockerError> {
         Self::new_with_port(0)
     }
 
+    /// Create a new instance of the UDP server mocker on the given port.
+    /// If the port is already in use, the method will return an error.
     pub fn new_with_port(port: u16) -> Result<Self, ServerMockerError> {
         let (instruction_tx, instruction_rx): (
             Sender<Vec<Instruction>>,
