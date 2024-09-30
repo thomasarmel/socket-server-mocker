@@ -1,21 +1,16 @@
 use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::{
-    ReceiveMessage, StopExchange,
-};
-use socket_server_mocker::server_mocker_instruction::ServerMockerInstructionsList;
+use socket_server_mocker::server_mocker_instruction::Instruction::{ReceiveMessage, StopExchange};
 use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 use std::io::Write;
 use std::net::TcpStream;
 
 #[test]
 fn simple_receiving_message_test() {
-    let tcp_server_mocker = TcpServerMocker::new(1234).unwrap();
+    let tcp_server_mocker = TcpServerMocker::new_with_port(1234).unwrap();
     let mut client = TcpStream::connect("127.0.0.1:1234").unwrap();
 
     tcp_server_mocker
-        .add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(
-            [ReceiveMessage, StopExchange].as_slice(),
-        ))
+        .add_mock_instructions(vec![ReceiveMessage, StopExchange])
         .unwrap();
     client.write_all(&[1, 2, 3]).unwrap();
 

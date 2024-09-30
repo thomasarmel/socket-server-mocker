@@ -1,9 +1,9 @@
 use socket_server_mocker::server_mocker::ServerMocker;
 use socket_server_mocker::server_mocker_error::ServerMockerErrorFatality;
-use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::{
+use socket_server_mocker::server_mocker_instruction::Instruction::{
     ReceiveMessage, ReceiveMessageWithMaxSize, SendMessage,
+    SendMessageDependingOnLastReceivedMessage, StopExchange,
 };
-use socket_server_mocker::server_mocker_instruction::ServerMockerInstructionsList;
 use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -14,20 +14,17 @@ use std::time::Duration;
 #[test]
 fn test_simple_tcp() {
     // Mock a TCP server listening on port 35642. Note that the mock will only listen on the local interface.
-    let tcp_server_mocker = TcpServerMocker::new(35642).unwrap();
+    let tcp_server_mocker = TcpServerMocker::new_with_port(35642).unwrap();
 
     // Create the TCP client to test
     let mut client = TcpStream::connect("127.0.0.1:35642").unwrap();
 
     // Mocked server behavior
     tcp_server_mocker
-        .add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(
-            [
-                ReceiveMessageWithMaxSize(16), // The mocked server will first wait for the client to send a message
-                SendMessage("hello from server".as_bytes().to_vec()), // Then it will send a message to the client
-            ]
-            .as_slice(),
-        ))
+        .add_mock_instructions(vec![
+            ReceiveMessageWithMaxSize(16), // The mocked server will first wait for the client to send a message
+            SendMessage("hello from server".as_bytes().to_vec()), // Then it will send a message to the client
+        ])
         .unwrap();
 
     // TCP client sends its first message
@@ -51,25 +48,31 @@ fn test_simple_tcp() {
     );
 
     // New instructions for the mocked server
-    let mut instructions = ServerMockerInstructionsList::new().with_added_receive_message(); // Wait for another message from the tested client
-    instructions.add_send_message_depending_on_last_received_message(|_| None); // No message is sent to the server
-    instructions.add_send_message_depending_on_last_received_message(|last_received_message| {
-        // "hello2 from client"
-        let mut received_message_string: String = from_utf8(&last_received_message.unwrap())
-            .unwrap()
-            .to_string();
-        // "hello2"
-        received_message_string.truncate(5);
-        Some(
-            format!("{received_message_string}2 from server")
-                .as_bytes()
-                .to_vec(),
-        )
-    }); // Send a message to the client depending on the last received message by the mocked server
-    instructions.add_stop_exchange(); // Finally close the connection
+    let instructions = vec![
+        // Wait for another message from the tested client
+        ReceiveMessage,
+        // No message is sent to the server
+        SendMessageDependingOnLastReceivedMessage(|_| None),
+        // Send a message to the client depending on the last received message by the mocked server
+        SendMessageDependingOnLastReceivedMessage(|last_received_message| {
+            // "hello2 from client"
+            let mut received_message_string: String = from_utf8(&last_received_message.unwrap())
+                .unwrap()
+                .to_string();
+            // "hello2"
+            received_message_string.truncate(5);
+            Some(
+                format!("{received_message_string}2 from server")
+                    .as_bytes()
+                    .to_vec(),
+            )
+        }),
+        // Finally close the connection
+        StopExchange,
+    ];
 
     tcp_server_mocker
-        .add_mock_instructions_list(instructions)
+        .add_mock_instructions(instructions)
         .unwrap();
 
     // Tested client send a message to the mocked server
@@ -96,9 +99,9 @@ fn test_simple_tcp() {
 #[test]
 fn test_try_listen_twice_on_same_port() {
     // First TcpServerMocker will listen on a random free port
-    let tcp_server_mocker = TcpServerMocker::new(0).unwrap();
+    let tcp_server_mocker = TcpServerMocker::new().unwrap();
     // Second TcpServerMocker will try to listen on the same port
-    let tcp_server_mocker2 = TcpServerMocker::new(tcp_server_mocker.listening_port());
+    let tcp_server_mocker2 = TcpServerMocker::new_with_port(tcp_server_mocker.port());
     // The second TcpServerMocker should fail to listen on the same port
     assert!(tcp_server_mocker2.is_err());
 }
@@ -106,18 +109,17 @@ fn test_try_listen_twice_on_same_port() {
 #[test]
 fn test_receive_timeout() {
     // Mock a TCP server listening on a random free port
-    let tcp_server_mocker = TcpServerMocker::new(0).unwrap();
+    let tcp_server_mocker = TcpServerMocker::new().unwrap();
 
     // Create the TCP client to test
-    let _client =
-        TcpStream::connect(format!("127.0.0.1:{}", tcp_server_mocker.listening_port())).unwrap();
+    let _client = TcpStream::connect(format!("127.0.0.1:{}", tcp_server_mocker.port())).unwrap();
 
     // Mocked server behavior
     tcp_server_mocker
-        .add_mock_instructions_list(ServerMockerInstructionsList::new_with_instructions(&[
+        .add_mock_instructions(vec![
             // Expect to receive a message from the client
             ReceiveMessage,
-        ]))
+        ])
         .unwrap();
 
     // Wait twice the receive timeout

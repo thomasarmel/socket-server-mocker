@@ -9,19 +9,17 @@
 
 use postgres::{Client, NoTls};
 use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::{
-    ReceiveMessage, SendMessage,
-};
+use socket_server_mocker::server_mocker_instruction::Instruction::{ReceiveMessage, SendMessage};
 use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 
 #[test]
 fn postgres_insert_mock() {
     // Mock PostgreSQL server on a port 54321 (default PostgresSQL port is 5432)
-    let postgres_server_mocker = TcpServerMocker::new(54321).unwrap();
+    let postgres_server_mocker = TcpServerMocker::new_with_port(54321).unwrap();
 
     // Add mock binary messages corresponding to client connection and authentication
     postgres_server_mocker
-        .add_mock_instructions(&[
+        .add_mock_instructions(vec![
             ReceiveMessage,
             SendMessage(vec![
                 0x52, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x05, 0x1c, 0x53, 0xa5, 0xf3,
@@ -86,7 +84,7 @@ fn postgres_insert_mock() {
 
     // Add mock instructions corresponding to the client INSERT query
     postgres_server_mocker
-        .add_mock_instructions(&[
+        .add_mock_instructions(vec![
             ReceiveMessage,
             SendMessage(vec![
                 0x31, 0x00, 0x00, 0x00, 0x04, 0x74, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x02, 0x00, 0x00,
@@ -116,11 +114,11 @@ fn postgres_insert_mock() {
 #[test]
 fn postgres_select_mock() {
     // Mock PostgreSQL server on a random free port (default PostgresSQL port is 5432)
-    let postgres_server_mocker = TcpServerMocker::new(0).unwrap();
+    let postgres_server_mocker = TcpServerMocker::new().unwrap();
 
     // Add mock binary messages corresponding to client connection and authentication
     postgres_server_mocker
-        .add_mock_instructions(&[
+        .add_mock_instructions(vec![
             ReceiveMessage,
             SendMessage(vec![
                 0x52, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x05, 0xb8, 0x28, 0x2f, 0xf6,
@@ -165,7 +163,7 @@ fn postgres_select_mock() {
     let mut client = Client::connect(
         &format!(
             "host=localhost user=admin password=password dbname=mockeddatabase port={}",
-            postgres_server_mocker.listening_port()
+            postgres_server_mocker.port()
         ),
         NoTls,
     )
@@ -188,7 +186,7 @@ fn postgres_select_mock() {
 
     // Add mock instructions corresponding to the client SELECT query
     postgres_server_mocker
-        .add_mock_instructions(&[
+        .add_mock_instructions(vec![
             ReceiveMessage,
             SendMessage(vec![
                 0x31, 0x00, 0x00, 0x00, 0x04, 0x74, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x54, 0x00,

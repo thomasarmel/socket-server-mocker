@@ -1,5 +1,5 @@
 use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_instruction::ServerMockerInstruction::SendMessage;
+use socket_server_mocker::server_mocker_instruction::Instruction::SendMessage;
 use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 use std::io::Read;
 use std::net::TcpStream;
@@ -7,14 +7,14 @@ use std::net::TcpStream;
 #[test]
 fn simple_sending_message_test_random_port() {
     // Use random free port
-    let tcp_server_mocker = TcpServerMocker::new(0).unwrap();
-    let mock_port = tcp_server_mocker.listening_port();
+    let tcp_server_mocker = TcpServerMocker::new().unwrap();
+    let mock_port = tcp_server_mocker.port();
 
     // Connect to the mocked server
     let mut client = TcpStream::connect(format!("127.0.0.1:{mock_port}")).unwrap();
 
     tcp_server_mocker
-        .add_mock_instructions(&[
+        .add_mock_instructions(vec![
             SendMessage(vec![1, 2, 3]),
             // We accidentally forgot ServerMockerInstruction::StopExchange,
         ])

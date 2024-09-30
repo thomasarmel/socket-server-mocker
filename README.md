@@ -26,9 +26,6 @@ In particular, you there are examples of mocking the protocols [PostgreSQL](test
 Here is a simple example in TCP:
 
 ```rust
-use socket_server_mocker::server_mocker_instruction::{
-    ServerMockerInstruction, ServerMockerInstructionsList,
-};
 use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -115,7 +112,6 @@ Another example in UDP:
 ```rust
 use std::net::UdpSocket;
 use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_instruction::{ServerMockerInstruction, ServerMockerInstructionsList};
 use socket_server_mocker::udp_server_mocker;
 
 #[test]
