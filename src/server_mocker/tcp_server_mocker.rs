@@ -51,9 +51,7 @@ impl TcpServerMocker {
         let addr: SocketAddr = ([127, 0, 0, 1], port).into();
         let listener = TcpListener::bind(addr).map_err(|e| UnableToBindListener(port, e))?;
 
-        let socket_addr = listener
-            .local_addr()
-            .map_err(|e| UnableToGetLocalAddress(e))?;
+        let socket_addr = listener.local_addr().map_err(UnableToGetLocalAddress)?;
 
         thread::spawn(move || {
             let Ok(tcp_stream) = listener.accept().map_err(|e| {
@@ -112,7 +110,7 @@ impl ServerMocker for TcpServerMocker {
     ) -> Result<(), ServerMockerError> {
         self.instruction_tx
             .send(instructions)
-            .map_err(|e| UnableToSendInstructions(e))
+            .map_err(UnableToSendInstructions)
     }
 
     fn pop_received_message(&self) -> Option<BinaryMessage> {
@@ -204,7 +202,7 @@ impl TcpServerMocker {
         loop {
             let bytes_read = tcp_stream
                 .read(&mut buffer)
-                .map_err(|e| UnableToReadTcpStream(e))?;
+                .map_err(UnableToReadTcpStream)?;
             whole_received_packet.extend_from_slice(&buffer[..bytes_read]);
             if bytes_read < Self::DEFAULT_SOCKET_READER_BUFFER_SIZE {
                 break;
@@ -217,8 +215,6 @@ impl TcpServerMocker {
         tcp_stream: &mut TcpStream,
         packet: &BinaryMessage,
     ) -> Result<(), ServerMockerError> {
-        tcp_stream
-            .write_all(packet)
-            .map_err(|e| UnableToWriteTcpStream(e))
+        tcp_stream.write_all(packet).map_err(UnableToWriteTcpStream)
     }
 }
