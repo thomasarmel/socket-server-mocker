@@ -3,13 +3,21 @@
 //! Mock a TCP server for testing application that connect to external TCP server.
 
 use crate::server_mocker::ServerMocker;
-use crate::server_mocker_error::{ServerMockerError, ServerMockerErrorFatality};
+use crate::server_mocker_error::ServerMockerError;
+use crate::server_mocker_error::ServerMockerError::{
+    UnableToAcceptConnection, UnableToBindListener, UnableToGetLocalAddress, UnableToReadTcpStream,
+    UnableToSendInstructions, UnableToSetReadTimeout, UnableToWriteTcpStream,
+};
+use crate::server_mocker_instruction::Instruction::{
+    ReceiveMessageWithMaxSize, SendMessage, SendMessageDependingOnLastReceivedMessage,
+};
 use crate::server_mocker_instruction::{BinaryMessage, Instruction};
 use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
+use std::time::Duration;
 
 /// A TCP server mocker
 ///
@@ -17,10 +25,10 @@ use std::thread;
 ///
 /// Only 1 client can be connected to the mocked server. When the connection is closed, the mocked server will stop.
 pub struct TcpServerMocker {
-    port: u16,
-    instructions_sender: Sender<Vec<Instruction>>,
-    message_receiver: Receiver<BinaryMessage>,
-    error_receiver: Receiver<ServerMockerError>,
+    socket_addr: SocketAddr,
+    instruction_tx: Sender<Vec<Instruction>>,
+    message_rx: Receiver<BinaryMessage>,
+    error_rx: Receiver<ServerMockerError>,
 }
 
 impl TcpServerMocker {
@@ -37,48 +45,33 @@ impl TcpServerMocker {
             Sender<Vec<Instruction>>,
             Receiver<Vec<Instruction>>,
         ) = mpsc::channel();
-        let (message_tx, message_rx): (Sender<BinaryMessage>, Receiver<BinaryMessage>) =
-            mpsc::channel();
-        let (error_tx, error_rx): (Sender<ServerMockerError>, Receiver<ServerMockerError>) =
-            mpsc::channel();
+        let (message_tx, message_rx) = mpsc::channel();
+        let (error_tx, error_rx) = mpsc::channel();
 
-        let tcp_listener = TcpListener::bind(format!("127.0.0.1:{port}")).map_err(|e| {
-            ServerMockerError::new(
-                &format!("Failed to bind TCP listener on port {port}: {e}"),
-                ServerMockerErrorFatality::Fatal,
-            )
-        })?;
-        let port = tcp_listener
+        let addr: SocketAddr = ([127, 0, 0, 1], port).into();
+        let listener = TcpListener::bind(addr).map_err(|e| UnableToBindListener(port, e))?;
+
+        let socket_addr = listener
             .local_addr()
-            .map_err(|e| {
-                ServerMockerError::new(
-                    &format!("Failed to get local address of TCP listener: {e}"),
-                    ServerMockerErrorFatality::Fatal,
-                )
-            })?
-            .port();
+            .map_err(|e| UnableToGetLocalAddress(e))?;
 
         thread::spawn(move || {
-            let tcp_stream = match tcp_listener.accept() {
-                Ok(incoming_client) => incoming_client.0,
-                Err(_) => {
-                    error_tx
-                        .send(ServerMockerError::new(
-                            &format!("Failed to accept incoming client on port {port}"),
-                            ServerMockerErrorFatality::Fatal,
-                        ))
-                        .unwrap();
-                    return;
-                }
-            }; // We need to manage only 1 client
-            Self::handle_connection(tcp_stream, instruction_rx, message_tx, error_tx);
+            let Ok(tcp_stream) = listener.accept().map_err(|e| {
+                error_tx
+                    .send(UnableToAcceptConnection(socket_addr, e))
+                    .unwrap();
+            }) else {
+                return;
+            };
+            // We need to manage only 1 client
+            Self::handle_connection(tcp_stream.0, instruction_rx, message_tx, error_tx);
         });
 
         Ok(Self {
-            port,
-            instructions_sender: instruction_tx,
-            message_receiver: message_rx,
-            error_receiver: error_rx,
+            socket_addr,
+            instruction_tx,
+            message_rx,
+            error_rx,
         })
     }
 }
@@ -109,35 +102,28 @@ impl TcpServerMocker {
 /// assert!(tcp_server_mocker.pop_server_error().is_none());
 /// ```
 impl ServerMocker for TcpServerMocker {
-    fn port(&self) -> u16 {
-        self.port
+    fn socket_address(&self) -> SocketAddr {
+        self.socket_addr
     }
 
     fn add_mock_instructions(
         &self,
         instructions: Vec<Instruction>,
     ) -> Result<(), ServerMockerError> {
-        self.instructions_sender.send(instructions).map_err(|e| {
-            ServerMockerError::new(
-                &format!("Failed to send instructions list to TCP server mocker: {e}"),
-                ServerMockerErrorFatality::NonFatal,
-            )
-        })
+        self.instruction_tx
+            .send(instructions)
+            .map_err(|e| UnableToSendInstructions(e))
     }
 
     fn pop_received_message(&self) -> Option<BinaryMessage> {
-        self.message_receiver
-            .recv_timeout(std::time::Duration::from_millis(
-                Self::DEFAULT_NET_TIMEOUT_MS,
-            ))
+        self.message_rx
+            .recv_timeout(Duration::from_millis(Self::DEFAULT_NET_TIMEOUT_MS))
             .ok()
     }
 
     fn pop_server_error(&self) -> Option<ServerMockerError> {
-        self.error_receiver
-            .recv_timeout(std::time::Duration::from_millis(
-                Self::DEFAULT_NET_TIMEOUT_MS,
-            ))
+        self.error_rx
+            .recv_timeout(Duration::from_millis(Self::DEFAULT_NET_TIMEOUT_MS))
             .ok()
     }
 }
@@ -148,74 +134,59 @@ impl TcpServerMocker {
     const DEFAULT_SOCKET_READER_BUFFER_SIZE: usize = 1024;
 
     fn handle_connection(
-        mut tcp_stream: TcpStream,
+        mut connection: TcpStream,
         instructions_receiver: Receiver<Vec<Instruction>>,
         message_sender: Sender<BinaryMessage>,
         error_sender: Sender<ServerMockerError>,
     ) {
-        if tcp_stream
-            .set_read_timeout(Some(std::time::Duration::from_millis(
-                Self::DEFAULT_NET_TIMEOUT_MS,
-            )))
-            .is_err()
-        {
-            error_sender
-                .send(ServerMockerError::new(
-                    "Failed to set read timeout on TCP stream",
-                    ServerMockerErrorFatality::Fatal,
-                ))
-                .unwrap();
+        let timeout = Some(Duration::from_millis(Self::DEFAULT_NET_TIMEOUT_MS));
+        if let Err(e) = connection.set_read_timeout(timeout) {
+            error_sender.send(UnableToSetReadTimeout(e)).unwrap();
             return;
         }
         let mut last_received_message: Option<BinaryMessage> = None;
 
         // Timeout: if no more instruction is available and StopExchange hasn't been sent
         // Stop server if no more instruction is available and StopExchange hasn't been sent
-        while let Ok(instructions_list) = instructions_receiver.recv_timeout(
-            std::time::Duration::from_millis(Self::DEFAULT_THREAD_RECEIVER_TIMEOUT_MS),
-        ) {
+        while let Ok(instructions_list) = instructions_receiver.recv_timeout(Duration::from_millis(
+            Self::DEFAULT_THREAD_RECEIVER_TIMEOUT_MS,
+        )) {
             for instruction in instructions_list {
                 match instruction {
-                    Instruction::SendMessage(binary_message) => {
-                        if let Err(e) = Self::send_packet(&mut tcp_stream, &binary_message) {
+                    SendMessage(binary_message) => {
+                        if let Err(e) = Self::send_packet(&mut connection, &binary_message) {
                             error_sender.send(e).unwrap();
                         }
                     }
-                    Instruction::SendMessageDependingOnLastReceivedMessage(
-                        sent_message_calculator,
-                    ) => {
+                    SendMessageDependingOnLastReceivedMessage(sent_message_calculator) => {
                         // Call the closure to get the message to send
                         let message_to_send =
                             sent_message_calculator(last_received_message.clone());
                         // Send the message or skip if the closure returned None
                         if let Some(message_to_send) = message_to_send {
-                            if let Err(e) = Self::send_packet(&mut tcp_stream, &message_to_send) {
+                            if let Err(e) = Self::send_packet(&mut connection, &message_to_send) {
                                 error_sender.send(e).unwrap();
                             }
                         }
                     }
                     Instruction::ReceiveMessage => {
-                        let whole_received_packet = match Self::read_packet(&mut tcp_stream) {
-                            Ok(whole_received_packet) => whole_received_packet,
-                            Err(e) => {
-                                error_sender.send(e).unwrap();
-                                continue;
+                        match Self::read_packet(&mut connection) {
+                            Ok(whole_received_packet) => {
+                                last_received_message = Some(whole_received_packet.clone());
+                                message_sender.send(whole_received_packet).unwrap();
                             }
+                            Err(e) => error_sender.send(e).unwrap(),
                         };
-                        last_received_message = Some(whole_received_packet.clone());
-                        message_sender.send(whole_received_packet).unwrap();
                     }
-                    Instruction::ReceiveMessageWithMaxSize(max_message_size) => {
-                        let mut whole_received_packet = match Self::read_packet(&mut tcp_stream) {
-                            Ok(whole_received_packet) => whole_received_packet,
-                            Err(e) => {
-                                error_sender.send(e).unwrap();
-                                continue;
+                    ReceiveMessageWithMaxSize(max_message_size) => {
+                        match Self::read_packet(&mut connection) {
+                            Ok(mut whole_received_packet) => {
+                                whole_received_packet.truncate(max_message_size);
+                                last_received_message = Some(whole_received_packet.clone());
+                                message_sender.send(whole_received_packet).unwrap();
                             }
+                            Err(e) => error_sender.send(e).unwrap(),
                         };
-                        whole_received_packet.truncate(max_message_size);
-                        last_received_message = Some(whole_received_packet.clone());
-                        message_sender.send(whole_received_packet).unwrap();
                     }
                     Instruction::StopExchange => {
                         return;
@@ -231,12 +202,9 @@ impl TcpServerMocker {
         let mut buffer = [0; Self::DEFAULT_SOCKET_READER_BUFFER_SIZE];
 
         loop {
-            let bytes_read = tcp_stream.read(&mut buffer).map_err(|e| {
-                ServerMockerError::new(
-                    &format!("Failed to read from TCP stream: {e}"),
-                    ServerMockerErrorFatality::NonFatal,
-                )
-            })?;
+            let bytes_read = tcp_stream
+                .read(&mut buffer)
+                .map_err(|e| UnableToReadTcpStream(e))?;
             whole_received_packet.extend_from_slice(&buffer[..bytes_read]);
             if bytes_read < Self::DEFAULT_SOCKET_READER_BUFFER_SIZE {
                 break;
@@ -249,11 +217,8 @@ impl TcpServerMocker {
         tcp_stream: &mut TcpStream,
         packet: &BinaryMessage,
     ) -> Result<(), ServerMockerError> {
-        tcp_stream.write_all(packet).map_err(|e| {
-            ServerMockerError::new(
-                &format!("Failed to write to TCP stream: {e}"),
-                ServerMockerErrorFatality::NonFatal,
-            )
-        })
+        tcp_stream
+            .write_all(packet)
+            .map_err(|e| UnableToWriteTcpStream(e))
     }
 }

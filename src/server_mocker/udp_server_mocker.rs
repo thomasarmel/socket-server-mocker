@@ -3,7 +3,12 @@
 //! Mock a UDP server for testing application that connect to external UDP server.
 
 use crate::server_mocker::ServerMocker;
-use crate::server_mocker_error::{ServerMockerError, ServerMockerErrorFatality};
+use crate::server_mocker_error::ServerMockerError;
+use crate::server_mocker_error::ServerMockerError::{
+    FailedToSendUdpMessage, GotSendMessageBeforeReceiveMessage, UnableToBindListener,
+    UnableToGetLocalAddress, UnableToReadUdpStream, UnableToSendInstructions,
+    UnableToSetReadTimeout,
+};
 use crate::server_mocker_instruction::Instruction::{
     ReceiveMessageWithMaxSize, SendMessage, SendMessageDependingOnLastReceivedMessage,
 };
@@ -12,6 +17,7 @@ use std::net::{SocketAddr, UdpSocket};
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
+use std::time::Duration;
 
 /// A UDP server mocker
 ///
@@ -21,10 +27,10 @@ use std::thread;
 /// When the object is dropped or a [stop instruction](Instruction::StopExchange) is received, the mocked server will stop.
 /// The server will also stop in case no more instructions are available.
 pub struct UdpServerMocker {
-    port: u16,
-    instructions_sender: Sender<Vec<Instruction>>,
-    message_receiver: Receiver<BinaryMessage>,
-    error_receiver: Receiver<ServerMockerError>,
+    socket_addr: SocketAddr,
+    instruction_tx: Sender<Vec<Instruction>>,
+    message_rx: Receiver<BinaryMessage>,
+    error_rx: Receiver<ServerMockerError>,
 }
 
 impl UdpServerMocker {
@@ -41,37 +47,25 @@ impl UdpServerMocker {
             Sender<Vec<Instruction>>,
             Receiver<Vec<Instruction>>,
         ) = mpsc::channel();
-        let (message_tx, message_rx): (Sender<BinaryMessage>, Receiver<BinaryMessage>) =
-            mpsc::channel();
-        let (error_tx, error_rx): (Sender<ServerMockerError>, Receiver<ServerMockerError>) =
-            mpsc::channel();
+        let (message_tx, message_rx) = mpsc::channel();
+        let (error_tx, error_rx) = mpsc::channel();
 
-        let socket = UdpSocket::bind(format!("127.0.0.1:{port}")).map_err(|e| {
-            ServerMockerError::new(
-                &format!("Failed to create UDP socket on port {port}: {e}"),
-                ServerMockerErrorFatality::Fatal,
-            )
-        })?;
+        let addr: SocketAddr = ([127, 0, 0, 1], port).into();
+        let listener = UdpSocket::bind(addr).map_err(|e| UnableToBindListener(port, e))?;
 
-        let port = socket
+        let socket_addr = listener
             .local_addr()
-            .map_err(|e| {
-                ServerMockerError::new(
-                    &format!("Failed to get local port of UDP socket: {e}"),
-                    ServerMockerErrorFatality::Fatal,
-                )
-            })?
-            .port();
+            .map_err(|e| UnableToGetLocalAddress(e))?;
 
         thread::spawn(move || {
-            Self::handle_dgram_stream(socket, instruction_rx, message_tx, error_tx);
+            Self::handle_dgram_stream(listener, instruction_rx, message_tx, error_tx);
         });
 
         Ok(Self {
-            port,
-            instructions_sender: instruction_tx,
-            message_receiver: message_rx,
-            error_receiver: error_rx,
+            socket_addr,
+            instruction_tx,
+            message_rx,
+            error_rx,
         })
     }
 }
@@ -104,35 +98,28 @@ impl UdpServerMocker {
 /// assert!(udp_server_mocker.pop_server_error().is_none());
 /// ```
 impl ServerMocker for UdpServerMocker {
-    fn port(&self) -> u16 {
-        self.port
+    fn socket_address(&self) -> SocketAddr {
+        self.socket_addr
     }
 
     fn add_mock_instructions(
         &self,
         instructions: Vec<Instruction>,
     ) -> Result<(), ServerMockerError> {
-        self.instructions_sender.send(instructions).map_err(|e| {
-            ServerMockerError::new(
-                &format!("Failed to send instructions to UDP server mocker: {e}"),
-                ServerMockerErrorFatality::NonFatal,
-            )
-        })
+        self.instruction_tx
+            .send(instructions)
+            .map_err(|e| UnableToSendInstructions(e))
     }
 
     fn pop_received_message(&self) -> Option<BinaryMessage> {
-        self.message_receiver
-            .recv_timeout(std::time::Duration::from_millis(
-                Self::DEFAULT_NET_TIMEOUT_MS,
-            ))
+        self.message_rx
+            .recv_timeout(Duration::from_millis(Self::DEFAULT_NET_TIMEOUT_MS))
             .ok()
     }
 
     fn pop_server_error(&self) -> Option<ServerMockerError> {
-        self.error_receiver
-            .recv_timeout(std::time::Duration::from_millis(
-                Self::DEFAULT_NET_TIMEOUT_MS,
-            ))
+        self.error_rx
+            .recv_timeout(Duration::from_millis(Self::DEFAULT_NET_TIMEOUT_MS))
             .ok()
     }
 }
@@ -143,23 +130,14 @@ impl UdpServerMocker {
     const MAX_UDP_PACKET_SIZE: usize = 65507;
 
     fn handle_dgram_stream(
-        udp_socket: UdpSocket,
+        connection: UdpSocket,
         instructions_receiver: Receiver<Vec<Instruction>>,
         message_sender: Sender<BinaryMessage>,
         error_sender: Sender<ServerMockerError>,
     ) {
-        if udp_socket
-            .set_read_timeout(Some(std::time::Duration::from_millis(
-                Self::DEFAULT_NET_TIMEOUT_MS,
-            )))
-            .is_err()
-        {
-            error_sender
-                .send(ServerMockerError::new(
-                    "Failed to set read timeout on UDP socket",
-                    ServerMockerErrorFatality::Fatal,
-                ))
-                .unwrap();
+        let timeout = Some(Duration::from_millis(Self::DEFAULT_NET_TIMEOUT_MS));
+        if let Err(e) = connection.set_read_timeout(timeout) {
+            error_sender.send(UnableToSetReadTimeout(e)).unwrap();
             return;
         }
 
@@ -168,14 +146,14 @@ impl UdpServerMocker {
 
         // Timeout: if no more instruction is available and StopExchange hasn't been sent
         // Stop server if no more instruction is available and StopExchange hasn't been sent
-        while let Ok(instructions_list) = instructions_receiver.recv_timeout(
-            std::time::Duration::from_millis(Self::DEFAULT_THREAD_RECEIVER_TIMEOUT_MS),
-        ) {
+        while let Ok(instructions_list) = instructions_receiver.recv_timeout(Duration::from_millis(
+            Self::DEFAULT_THREAD_RECEIVER_TIMEOUT_MS,
+        )) {
             for instruction in instructions_list {
                 match instruction {
                     SendMessage(binary_message) => {
                         if let Err(e) = Self::send_packet_to_last_client(
-                            &udp_socket,
+                            &connection,
                             &binary_message,
                             &last_received_packed_with_addr,
                         ) {
@@ -191,7 +169,7 @@ impl UdpServerMocker {
                             });
                         if let Some(message_to_send) = message_to_send {
                             if let Err(e) = Self::send_packet_to_last_client(
-                                &udp_socket,
+                                &connection,
                                 &message_to_send,
                                 &last_received_packed_with_addr,
                             ) {
@@ -201,7 +179,7 @@ impl UdpServerMocker {
                     }
                     Instruction::ReceiveMessage => {
                         let received_packet_with_addr =
-                            match Self::receive_packet(&udp_socket, Self::MAX_UDP_PACKET_SIZE) {
+                            match Self::receive_packet(&connection, Self::MAX_UDP_PACKET_SIZE) {
                                 Ok(received) => received,
                                 Err(e) => {
                                     error_sender.send(e).unwrap();
@@ -216,20 +194,14 @@ impl UdpServerMocker {
                         message_sender.send(received_packet_with_addr.1).unwrap();
                     }
                     ReceiveMessageWithMaxSize(max_message_size) => {
-                        let received_packet_with_addr =
-                            match Self::receive_packet(&udp_socket, max_message_size) {
-                                Ok(received) => received,
-                                Err(e) => {
-                                    error_sender.send(e).unwrap();
-                                    continue;
-                                }
-                            };
-
-                        last_received_packed_with_addr = Some((
-                            received_packet_with_addr.0,
-                            received_packet_with_addr.1.clone(),
-                        ));
-                        message_sender.send(received_packet_with_addr.1).unwrap();
+                        match Self::receive_packet(&connection, max_message_size) {
+                            Ok(received) => {
+                                last_received_packed_with_addr =
+                                    Some((received.0, received.1.clone()));
+                                message_sender.send(received.1).unwrap();
+                            }
+                            Err(e) => error_sender.send(e).unwrap(),
+                        };
                     }
                     Instruction::StopExchange => {
                         return;
@@ -247,12 +219,7 @@ impl UdpServerMocker {
 
         let (bytes_read, packet_sender_addr) = udp_socket
             .recv_from(&mut whole_received_packet)
-            .map_err(|e| {
-                ServerMockerError::new(
-                    &format!("Failed to receive message from client: {e}"),
-                    ServerMockerErrorFatality::NonFatal,
-                )
-            })?;
+            .map_err(|e| UnableToReadUdpStream(e))?;
 
         // Remove the extra bytes
         whole_received_packet.truncate(bytes_read);
@@ -268,21 +235,14 @@ impl UdpServerMocker {
         // Last message received with the address of the client, used to send the response
         last_received_packed_with_addr
             .as_ref()
-            .ok_or(ServerMockerError::new(
-                "SendMessage instruction received before a ReceiveMessage",
-                ServerMockerErrorFatality::NonFatal,
-            ))?;
+            .ok_or(GotSendMessageBeforeReceiveMessage)?;
+
         udp_socket
             .send_to(
                 message_to_send,
                 last_received_packed_with_addr.as_ref().unwrap().0,
             )
-            .map_err(|e| {
-                ServerMockerError::new(
-                    &format!("Failed to send message to client: {e}"),
-                    ServerMockerErrorFatality::NonFatal,
-                )
-            })?;
+            .map_err(|e| FailedToSendUdpMessage(e))?;
         Ok(())
     }
 }
