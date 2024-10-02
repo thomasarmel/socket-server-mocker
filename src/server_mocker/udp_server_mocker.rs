@@ -2,6 +2,12 @@
 //!
 //! Mock a UDP server for testing application that connect to external UDP server.
 
+use std::net::{SocketAddr, UdpSocket};
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
+use std::thread;
+use std::time::Duration;
+
 use crate::server_mocker::ServerMocker;
 use crate::server_mocker_error::ServerMockerError;
 use crate::server_mocker_error::ServerMockerError::{
@@ -13,11 +19,6 @@ use crate::server_mocker_instruction::Instruction::{
     ReceiveMessageWithMaxSize, SendMessage, SendMessageDependingOnLastReceivedMessage,
 };
 use crate::server_mocker_instruction::{BinaryMessage, Instruction};
-use std::net::{SocketAddr, UdpSocket};
-use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
-use std::thread;
-use std::time::Duration;
 
 /// A UDP server mocker
 ///

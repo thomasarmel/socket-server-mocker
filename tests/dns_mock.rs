@@ -1,10 +1,11 @@
+use std::net::Ipv4Addr;
+use std::str::FromStr;
+
 use socket_server_mocker::server_mocker::ServerMocker;
 use socket_server_mocker::server_mocker_instruction::Instruction::{
     ReceiveMessageWithMaxSize, SendMessageDependingOnLastReceivedMessage, StopExchange,
 };
 use socket_server_mocker::udp_server_mocker::UdpServerMocker;
-use std::net::Ipv4Addr;
-use std::str::FromStr;
 use trust_dns_client::client::{Client, SyncClient};
 use trust_dns_client::op::DnsResponse;
 use trust_dns_client::rr::rdata::A;

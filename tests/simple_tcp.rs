@@ -1,14 +1,15 @@
+use std::io::{Read, Write};
+use std::net::TcpStream;
+use std::str::from_utf8;
+use std::thread::sleep;
+use std::time::Duration;
+
 use socket_server_mocker::server_mocker::ServerMocker;
 use socket_server_mocker::server_mocker_instruction::Instruction::{
     ReceiveMessage, ReceiveMessageWithMaxSize, SendMessage,
     SendMessageDependingOnLastReceivedMessage, StopExchange,
 };
 use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
-use std::io::{Read, Write};
-use std::net::TcpStream;
-use std::str::from_utf8;
-use std::thread::sleep;
-use std::time::Duration;
 
 #[test]
 fn test_simple_tcp() {

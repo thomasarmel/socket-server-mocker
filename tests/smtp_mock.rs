@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use lettre::transport::smtp::client::Tls;
 use lettre::{Message, SmtpTransport, Transport};
 use socket_server_mocker::server_mocker::ServerMocker;
@@ -5,7 +7,6 @@ use socket_server_mocker::server_mocker_instruction::Instruction::{
     ReceiveMessage, SendMessage, StopExchange,
 };
 use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
-use std::time::Duration;
 
 #[test]
 fn test_smtp_mock() {

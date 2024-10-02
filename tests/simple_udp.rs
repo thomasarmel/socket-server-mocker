@@ -1,11 +1,12 @@
+use std::net::UdpSocket;
+use std::time::Duration;
+
 use socket_server_mocker::server_mocker::ServerMocker;
 use socket_server_mocker::server_mocker_instruction::Instruction::{
     ReceiveMessageWithMaxSize, SendMessage, SendMessageDependingOnLastReceivedMessage,
 };
 use socket_server_mocker::udp_server_mocker;
 use socket_server_mocker::udp_server_mocker::UdpServerMocker;
-use std::net::UdpSocket;
-use std::time::Duration;
 
 #[test]
 fn test_simple_udp() {

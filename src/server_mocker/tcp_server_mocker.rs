@@ -2,6 +2,13 @@
 //!
 //! Mock a TCP server for testing application that connect to external TCP server.
 
+use std::io::{Read, Write};
+use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
+use std::thread;
+use std::time::Duration;
+
 use crate::server_mocker::ServerMocker;
 use crate::server_mocker_error::ServerMockerError;
 use crate::server_mocker_error::ServerMockerError::{
@@ -12,12 +19,6 @@ use crate::server_mocker_instruction::Instruction::{
     ReceiveMessageWithMaxSize, SendMessage, SendMessageDependingOnLastReceivedMessage,
 };
 use crate::server_mocker_instruction::{BinaryMessage, Instruction};
-use std::io::{Read, Write};
-use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
-use std::thread;
-use std::time::Duration;
 
 /// A TCP server mocker
 ///
