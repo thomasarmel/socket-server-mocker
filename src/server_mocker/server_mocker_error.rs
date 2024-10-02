@@ -1,4 +1,4 @@
-//! # server_mocker_error
+//! # `server_mocker_error`
 //!
 //! `server_mocker_error` is a type representing an error raised by a server mocker. It's mainly errors raised by the underlying socket server.
 //!

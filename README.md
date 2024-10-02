@@ -1,4 +1,4 @@
-j # socket-server-mocker
+# socket-server-mocker
 
 [![GitHub](https://img.shields.io/badge/github-thomasarmel/socket--server--mocker-8da0cb?logo=github)](https://github.com/thomasarmel/socket-server-mocker)
 [![crates.io version](https://img.shields.io/crates/v/socket-server-mocker.svg)](https://crates.io/crates/socket-server-mocker)
@@ -21,7 +21,7 @@ Add the **socket-server-mocker** dependency to your `Cargo.toml` for testing com
 
 ```toml
 [dev-dependencies]
-socket-server-mocker = "0.2.0"
+socket-server-mocker = "0.2.1"
 ```
 
 ## Example

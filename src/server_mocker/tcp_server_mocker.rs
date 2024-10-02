@@ -1,4 +1,4 @@
-//! # tcp_server_mocker
+//! # `tcp_server_mocker`
 //!
 //! Mock a TCP server for testing application that connect to external TCP server.
 
@@ -33,13 +33,16 @@ pub struct TcpServerMocker {
 
 impl TcpServerMocker {
     /// Create a new instance of the TCP server mocker on a random free port.
-    /// The port can be retrieved with the [ServerMocker::port] method.
+    /// The port can be retrieved with the [`ServerMocker::port`] method.
     pub fn new() -> Result<Self, ServerMockerError> {
         Self::new_with_port(0)
     }
 
     /// Create a new instance of the TCP server mocker on the given port.
     /// If the port is already in use, the method will return an error.
+    ///
+    /// # Panics
+    /// It is assumed that threads can use messages channels without panicking.
     pub fn new_with_port(port: u16) -> Result<Self, ServerMockerError> {
         let (instruction_tx, instruction_rx): (
             Sender<Vec<Instruction>>,
@@ -62,7 +65,7 @@ impl TcpServerMocker {
                 return;
             };
             // We need to manage only 1 client
-            Self::handle_connection(tcp_stream.0, instruction_rx, message_tx, error_tx);
+            Self::handle_connection(tcp_stream.0, &instruction_rx, &message_tx, &error_tx);
         });
 
         Ok(Self {
@@ -74,7 +77,7 @@ impl TcpServerMocker {
     }
 }
 
-/// TcpServerMocker implementation
+/// `TcpServerMocker` implementation
 ///
 /// # Example
 /// ```
@@ -133,9 +136,9 @@ impl TcpServerMocker {
 
     fn handle_connection(
         mut connection: TcpStream,
-        instructions_receiver: Receiver<Vec<Instruction>>,
-        message_sender: Sender<BinaryMessage>,
-        error_sender: Sender<ServerMockerError>,
+        instructions_receiver: &Receiver<Vec<Instruction>>,
+        message_sender: &Sender<BinaryMessage>,
+        error_sender: &Sender<ServerMockerError>,
     ) {
         let timeout = Some(Duration::from_millis(Self::DEFAULT_NET_TIMEOUT_MS));
         if let Err(e) = connection.set_read_timeout(timeout) {
