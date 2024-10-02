@@ -53,9 +53,7 @@ impl UdpServerMocker {
         let addr: SocketAddr = ([127, 0, 0, 1], port).into();
         let listener = UdpSocket::bind(addr).map_err(|e| UnableToBindListener(port, e))?;
 
-        let socket_addr = listener
-            .local_addr()
-            .map_err(|e| UnableToGetLocalAddress(e))?;
+        let socket_addr = listener.local_addr().map_err(UnableToGetLocalAddress)?;
 
         thread::spawn(move || {
             Self::handle_dgram_stream(listener, instruction_rx, message_tx, error_tx);
@@ -108,7 +106,7 @@ impl ServerMocker for UdpServerMocker {
     ) -> Result<(), ServerMockerError> {
         self.instruction_tx
             .send(instructions)
-            .map_err(|e| UnableToSendInstructions(e))
+            .map_err(UnableToSendInstructions)
     }
 
     fn pop_received_message(&self) -> Option<BinaryMessage> {
@@ -219,7 +217,7 @@ impl UdpServerMocker {
 
         let (bytes_read, packet_sender_addr) = udp_socket
             .recv_from(&mut whole_received_packet)
-            .map_err(|e| UnableToReadUdpStream(e))?;
+            .map_err(UnableToReadUdpStream)?;
 
         // Remove the extra bytes
         whole_received_packet.truncate(bytes_read);
@@ -242,7 +240,7 @@ impl UdpServerMocker {
                 message_to_send,
                 last_received_packed_with_addr.as_ref().unwrap().0,
             )
-            .map_err(|e| FailedToSendUdpMessage(e))?;
+            .map_err(FailedToSendUdpMessage)?;
         Ok(())
     }
 }

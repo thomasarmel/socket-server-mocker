@@ -1,4 +1,10 @@
-# socket-server-mocker
+j # socket-server-mocker
+
+[![GitHub](https://img.shields.io/badge/github-thomasarmel/socket--server--mocker-8da0cb?logo=github)](https://github.com/thomasarmel/socket-server-mocker)
+[![crates.io version](https://img.shields.io/crates/v/socket-server-mocker.svg)](https://crates.io/crates/socket-server-mocker)
+[![docs.rs docs](https://docs.rs/socket-server-mocker/badge.svg)](https://docs.rs/socket-server-mocker)
+[![crates.io version](https://img.shields.io/crates/l/socket-server-mocker.svg)](https://github.com/thomasarmel/socket-server-mocker/blob/main/LICENSE)
+[![CI build](https://github.com/thomasarmel/socket-server-mocker/actions/workflows/rust.yml/badge.svg)](https://github.com/thomasarmel/socket-server-mocker/actions)
 
 _Mock socket server in Rust, for testing various network clients._
 
@@ -165,3 +171,10 @@ assert_eq!("hello2 from server", received_message);
 // Check that no error has been raised by the mocked server
 assert!(udp_server_mocker.pop_server_error().is_none());
 ```
+
+## Development
+
+* This project is easier to develop with [just](https://github.com/casey/just#readme), a modern alternative to `make`.
+  Install it with `cargo install just`.
+* To get a list of available commands, run `just`.
+* To run tests, use `just test`.

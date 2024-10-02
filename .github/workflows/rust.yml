@@ -1,18 +1,48 @@
 name: Rust
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  release:
+    types: [ published ]
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  test:
+    name: Test
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v2
-      - name: Build
-        run: cargo build --verbose
-      - name: Run tests
-        run: cargo test --verbose
+      - uses: taiki-e/install-action@v2
+        with: { tool: just }
+      - uses: actions/checkout@v4
+      - name: Ensure this crate has not yet been published (on release)
+        if: github.event_name == 'release'
+        run: just check-if-published
+      - uses: Swatinem/rust-cache@v2
+        if: github.event_name != 'release' && github.event_name != 'workflow_dispatch'
+      - run: just ci-test
+      - name: Check semver
+        uses: obi1kenobi/cargo-semver-checks-action@v2
+
+  msrv:
+    name: Test MSRV
+    runs-on: ubuntu-latest
+    steps:
+      - uses: taiki-e/install-action@v2
+        with: { tool: just }
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        if: github.event_name != 'release' && github.event_name != 'workflow_dispatch'
+      - name: Read crate metadata
+        id: metadata
+        run: echo "rust-version=$(sed -ne 's/rust-version *= *\"\(.*\)\"/\1/p' Cargo.toml)" >> $GITHUB_OUTPUT
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ steps.metadata.outputs.rust-version }}
+      - run: just ci-test-msrv
