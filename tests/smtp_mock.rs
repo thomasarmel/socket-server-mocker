@@ -5,6 +5,7 @@ use socket_server_mocker::server_mocker_instruction::Instruction::{
     ReceiveMessage, SendMessage, StopExchange,
 };
 use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
+use std::time::Duration;
 
 #[test]
 fn test_smtp_mock() {
@@ -49,7 +50,7 @@ fn test_smtp_mock() {
         .unwrap()
         .tls(Tls::None)
         .port(2525)
-        .timeout(Some(std::time::Duration::from_secs(1)))
+        .timeout(Some(Duration::from_secs(1)))
         .build();
     // Send the email
     mailer.send(&email_builder).unwrap();
