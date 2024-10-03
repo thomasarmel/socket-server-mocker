@@ -7,18 +7,17 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
-use std::time::Duration;
 
 use crate::server_mocker::ServerMocker;
-use crate::server_mocker_error::ServerMockerError;
-use crate::server_mocker_error::ServerMockerError::{
-    UnableToAcceptConnection, UnableToBindListener, UnableToGetLocalAddress, UnableToReadTcpStream,
-    UnableToSendInstructions, UnableToSetReadTimeout, UnableToWriteTcpStream,
-};
+use crate::server_mocker_instruction::Instruction;
 use crate::server_mocker_instruction::Instruction::{
     ReceiveMessageWithMaxSize, SendMessage, SendMessageDependingOnLastReceivedMessage,
 };
-use crate::server_mocker_instruction::{BinaryMessage, Instruction};
+use crate::ServerMockerError;
+use crate::ServerMockerError::{
+    UnableToAcceptConnection, UnableToBindListener, UnableToGetLocalAddress, UnableToReadTcpStream,
+    UnableToSendInstructions, UnableToSetReadTimeout, UnableToWriteTcpStream,
+};
 
 /// A TCP server mocker
 ///
@@ -28,7 +27,7 @@ use crate::server_mocker_instruction::{BinaryMessage, Instruction};
 pub struct TcpServerMocker {
     socket_addr: SocketAddr,
     instruction_tx: Sender<Vec<Instruction>>,
-    message_rx: Receiver<BinaryMessage>,
+    message_rx: Receiver<Vec<u8>>,
     error_rx: Receiver<ServerMockerError>,
 }
 
@@ -84,10 +83,10 @@ impl TcpServerMocker {
 /// ```
 /// use std::io::Write;
 /// use std::net::TcpStream;
-/// use socket_server_mocker::server_mocker::ServerMocker;
-/// use socket_server_mocker::server_mocker_instruction::Instruction;
-/// use socket_server_mocker::server_mocker_instruction::Instruction::{ReceiveMessage, StopExchange};
-/// use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
+/// use socket_server_mocker::ServerMocker;
+/// use socket_server_mocker::Instruction;
+/// use socket_server_mocker::Instruction::{ReceiveMessage, StopExchange};
+/// use socket_server_mocker::TcpServerMocker;
 ///
 /// let tcp_server_mocker = TcpServerMocker::new_with_port(1234).unwrap();
 /// let mut client = TcpStream::connect("127.0.0.1:1234").unwrap();
@@ -117,16 +116,12 @@ impl ServerMocker for TcpServerMocker {
             .map_err(UnableToSendInstructions)
     }
 
-    fn pop_received_message(&self) -> Option<BinaryMessage> {
-        self.message_rx
-            .recv_timeout(Duration::from_millis(Self::DEFAULT_NET_TIMEOUT_MS))
-            .ok()
+    fn pop_received_message(&self) -> Option<Vec<u8>> {
+        self.message_rx.recv_timeout(Self::DEFAULT_NET_TIMEOUT).ok()
     }
 
     fn pop_server_error(&self) -> Option<ServerMockerError> {
-        self.error_rx
-            .recv_timeout(Duration::from_millis(Self::DEFAULT_NET_TIMEOUT_MS))
-            .ok()
+        self.error_rx.recv_timeout(Self::DEFAULT_NET_TIMEOUT).ok()
     }
 }
 
@@ -138,21 +133,21 @@ impl TcpServerMocker {
     fn handle_connection(
         mut connection: TcpStream,
         instructions_receiver: &Receiver<Vec<Instruction>>,
-        message_sender: &Sender<BinaryMessage>,
+        message_sender: &Sender<Vec<u8>>,
         error_sender: &Sender<ServerMockerError>,
     ) {
-        let timeout = Some(Duration::from_millis(Self::DEFAULT_NET_TIMEOUT_MS));
+        let timeout = Some(Self::DEFAULT_NET_TIMEOUT);
         if let Err(e) = connection.set_read_timeout(timeout) {
             error_sender.send(UnableToSetReadTimeout(e)).unwrap();
             return;
         }
-        let mut last_received_message: Option<BinaryMessage> = None;
+        let mut last_received_message: Option<Vec<u8>> = None;
 
         // Timeout: if no more instruction is available and StopExchange hasn't been sent
         // Stop server if no more instruction is available and StopExchange hasn't been sent
-        while let Ok(instructions_list) = instructions_receiver.recv_timeout(Duration::from_millis(
-            Self::DEFAULT_THREAD_RECEIVER_TIMEOUT_MS,
-        )) {
+        while let Ok(instructions_list) =
+            instructions_receiver.recv_timeout(Self::DEFAULT_THREAD_RECEIVER_TIMEOUT)
+        {
             for instruction in instructions_list {
                 match instruction {
                     SendMessage(binary_message) => {
@@ -199,7 +194,7 @@ impl TcpServerMocker {
     }
 
     // Read a TCP packet from the client, using temporary buffer of size [DEFAULT_SOCKET_READER_BUFFER_SIZE](Self::DEFAULT_SOCKET_READER_BUFFER_SIZE)
-    fn read_packet(tcp_stream: &mut TcpStream) -> Result<BinaryMessage, ServerMockerError> {
+    fn read_packet(tcp_stream: &mut TcpStream) -> Result<Vec<u8>, ServerMockerError> {
         let mut whole_received_packet: Vec<u8> = Vec::new();
         let mut buffer = [0; Self::DEFAULT_SOCKET_READER_BUFFER_SIZE];
 
@@ -215,10 +210,7 @@ impl TcpServerMocker {
         Ok(whole_received_packet)
     }
 
-    fn send_packet(
-        tcp_stream: &mut TcpStream,
-        packet: &BinaryMessage,
-    ) -> Result<(), ServerMockerError> {
+    fn send_packet(tcp_stream: &mut TcpStream, packet: &[u8]) -> Result<(), ServerMockerError> {
         tcp_stream.write_all(packet).map_err(UnableToWriteTcpStream)
     }
 }

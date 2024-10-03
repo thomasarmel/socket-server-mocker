@@ -1,9 +1,8 @@
 use std::io::Read;
 use std::net::TcpStream;
 
-use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_instruction::Instruction::SendMessage;
-use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
+use socket_server_mocker::Instruction::SendMessage;
+use socket_server_mocker::{ServerMocker, TcpServerMocker};
 
 #[test]
 fn simple_sending_message_test_random_port() {

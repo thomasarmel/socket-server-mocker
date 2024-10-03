@@ -8,9 +8,8 @@
 //! This hash method is secured by a nonce, so this mocked server uses md5 instead.
 
 use postgres::{Client, NoTls};
-use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_instruction::Instruction::{ReceiveMessage, SendMessage};
-use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
+use socket_server_mocker::Instruction::{ReceiveMessage, SendMessage};
+use socket_server_mocker::{ServerMocker, TcpServerMocker};
 
 #[test]
 fn postgres_insert_mock() {

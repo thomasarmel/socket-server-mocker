@@ -1,17 +1,16 @@
 use std::net::UdpSocket;
-use std::time::Duration;
+use std::str::from_utf8;
+use std::thread::sleep;
 
-use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_instruction::Instruction::{
+use socket_server_mocker::Instruction::{
     ReceiveMessageWithMaxSize, SendMessage, SendMessageDependingOnLastReceivedMessage,
 };
-use socket_server_mocker::udp_server_mocker;
-use socket_server_mocker::udp_server_mocker::UdpServerMocker;
+use socket_server_mocker::{ServerMocker, UdpServerMocker};
 
 #[test]
 fn test_simple_udp() {
     // Mock a UDP server listening on port 35642. Note that the mock will only listen on the local interface.
-    let udp_server_mocker = udp_server_mocker::UdpServerMocker::new_with_port(35642).unwrap();
+    let udp_server_mocker = UdpServerMocker::new_with_port(35642).unwrap();
 
     // Create the UDP client to test
     let client_socket = UdpSocket::bind("127.0.0.1:34254").unwrap();
@@ -30,7 +29,7 @@ fn test_simple_udp() {
             SendMessageDependingOnLastReceivedMessage(|last_received_message| {
                 // "hello2 from client"
                 let mut received_message_string: String =
-                    std::str::from_utf8(&last_received_message.unwrap())
+                    from_utf8(&last_received_message.unwrap())
                         .unwrap()
                         .to_string();
                 // "hello2"
@@ -52,7 +51,7 @@ fn test_simple_udp() {
     let received_size = client_socket.recv(&mut buffer).unwrap();
 
     // convert shrunk buffer to string
-    let received_message = std::str::from_utf8(&buffer[..received_size]).unwrap();
+    let received_message = from_utf8(&buffer[..received_size]).unwrap();
 
     // Check that the message received by the client is the one sent by the mocked server
     assert_eq!("hello from server", received_message);
@@ -60,12 +59,12 @@ fn test_simple_udp() {
     // Check that the mocked server received the message sent by the client
     assert_eq!(
         "hello from client",
-        std::str::from_utf8(&udp_server_mocker.pop_received_message().unwrap()).unwrap()
+        from_utf8(&udp_server_mocker.pop_received_message().unwrap()).unwrap()
     );
 
     let received_size = client_socket.recv(&mut buffer).unwrap();
     // convert shrunk buffer to string
-    let received_message = std::str::from_utf8(&buffer[..received_size]).unwrap();
+    let received_message = from_utf8(&buffer[..received_size]).unwrap();
 
     // Check that the message received by the client is the one sent by the mocked server
     assert_eq!("hello2 from server", received_message);
@@ -87,7 +86,7 @@ fn test_try_listen_twice_on_same_port() {
 #[test]
 fn test_try_receive_before_send() {
     // Mock a UDP server listening on random port
-    let udp_server_mocker = udp_server_mocker::UdpServerMocker::new().unwrap();
+    let udp_server_mocker = UdpServerMocker::new().unwrap();
 
     // Mocked server behavior
     udp_server_mocker
@@ -115,7 +114,7 @@ fn test_try_receive_before_send() {
 #[test]
 fn test_receive_timeout() {
     // Mock a UDP server listening on a random free port
-    let udp_server_mocker = udp_server_mocker::UdpServerMocker::new().unwrap();
+    let udp_server_mocker = UdpServerMocker::new().unwrap();
 
     // Mocked server behavior
     udp_server_mocker
@@ -126,9 +125,7 @@ fn test_receive_timeout() {
         .unwrap();
 
     // Wait twice the receive timeout
-    std::thread::sleep(Duration::from_millis(
-        2 * UdpServerMocker::DEFAULT_NET_TIMEOUT_MS,
-    ));
+    sleep(2 * UdpServerMocker::DEFAULT_NET_TIMEOUT);
 
     // Check that the mocked server has raised an error
     let mocked_server_error_received = udp_server_mocker.pop_server_error();
