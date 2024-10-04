@@ -22,7 +22,7 @@ fn test_simple_udp() {
             // The mocked server will first wait for the client to send a message, with max size = 32 bytes
             ReceiveMessageWithMaxSize(32),
             // Then it will send a message to the client
-            SendMessage("hello from server".as_bytes().to_vec()),
+            SendMessage(b"hello from server".to_vec()),
             // Send nothing
             SendMessageDependingOnLastReceivedMessage(|_| None),
             // Send a message to the client depending on the last received message by the mocked server
@@ -44,7 +44,7 @@ fn test_simple_udp() {
         .unwrap();
 
     // UDP client sends its first message
-    client_socket.send("hello from client".as_bytes()).unwrap();
+    client_socket.send(b"hello from client").unwrap();
 
     // Read a message sent by the mocked server
     let mut buffer = [0; 32];
@@ -92,7 +92,7 @@ fn test_try_receive_before_send() {
     udp_server_mocker
         .add_mock_instructions(vec![
             // The mocked server will send a message before receiving anything from the client
-            SendMessage("hello from server".as_bytes().to_vec()),
+            SendMessage(b"hello from server".to_vec()),
         ])
         .unwrap();
 

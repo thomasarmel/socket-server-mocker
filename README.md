@@ -21,7 +21,7 @@ Add the **socket-server-mocker** dependency to your `Cargo.toml` for testing com
 
 ```toml
 [dev-dependencies]
-socket-server-mocker = "0.3.0"
+socket-server-mocker = "0.3"
 ```
 
 ## Example
@@ -48,11 +48,11 @@ let mut client = TcpStream::connect("127.0.0.1:35642").unwrap();
 // Mocked server behavior
 tcp_server_mocker.add_mock_instructions(vec![
     ReceiveMessageWithMaxSize(16), // The mocked server will first wait for the client to send a message
-    SendMessage("hello from server".as_bytes().to_vec()), // Then it will send a message to the client
+    SendMessage(b"hello from server".to_vec()), // Then it will send a message to the client
 ]);
 
 // TCP client sends its first message
-client.write_all("hello from client".as_bytes()).unwrap();
+client.write_all(b"hello from client").unwrap();
 
 // Read a message sent by the mocked server
 let mut buffer = [0; 1024];
@@ -87,7 +87,7 @@ tcp_server_mocker.add_mock_instructions(vec![
 ]);
 
 // Tested client send a message to the mocked server
-client.write_all("hello2 from client".as_bytes()).unwrap();
+client.write_all(b"hello2 from client").unwrap();
 
 // Read a message sent by the mocked server
 let mut buffer = [0; 1024];
@@ -127,7 +127,7 @@ udp_server_mocker.add_mock_instructions(vec![
     // The mocked server will first wait for the client to send a message, with max size = 32 bytes
     ReceiveMessageWithMaxSize(32),
     // Then it will send a message to the client
-    SendMessage("hello from server".as_bytes().to_vec()),
+    SendMessage(b"hello from server".to_vec()),
     // Send nothing
     SendMessageDependingOnLastReceivedMessage(|_| {
         None
@@ -144,7 +144,7 @@ udp_server_mocker.add_mock_instructions(vec![
 );
 
 // UDP client sends its first message
-client_socket.send("hello from client".as_bytes()).unwrap();
+client_socket.send(b"hello from client").unwrap();
 
 // Read a message sent by the mocked server
 let mut buffer = [0; 32];
