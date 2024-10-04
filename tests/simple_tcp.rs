@@ -1,14 +1,13 @@
-use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_instruction::Instruction::{
-    ReceiveMessage, ReceiveMessageWithMaxSize, SendMessage,
-    SendMessageDependingOnLastReceivedMessage, StopExchange,
-};
-use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::str::from_utf8;
 use std::thread::sleep;
-use std::time::Duration;
+
+use socket_server_mocker::Instruction::{
+    ReceiveMessage, ReceiveMessageWithMaxSize, SendMessage,
+    SendMessageDependingOnLastReceivedMessage, StopExchange,
+};
+use socket_server_mocker::{ServerMocker, TcpServerMocker};
 
 #[test]
 fn test_simple_tcp() {
@@ -122,9 +121,7 @@ fn test_receive_timeout() {
         .unwrap();
 
     // Wait twice the receive timeout
-    sleep(Duration::from_millis(
-        2 * TcpServerMocker::DEFAULT_NET_TIMEOUT_MS,
-    ));
+    sleep(2 * TcpServerMocker::DEFAULT_NET_TIMEOUT);
 
     // Check that the mocked server has raised an error
     let tcp_server_error = tcp_server_mocker.pop_server_error();

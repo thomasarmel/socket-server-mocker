@@ -1,11 +1,9 @@
+use std::time::Duration;
+
 use lettre::transport::smtp::client::Tls;
 use lettre::{Message, SmtpTransport, Transport};
-use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_instruction::Instruction::{
-    ReceiveMessage, SendMessage, StopExchange,
-};
-use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
-use std::time::Duration;
+use socket_server_mocker::Instruction::{ReceiveMessage, SendMessage, StopExchange};
+use socket_server_mocker::{ServerMocker, TcpServerMocker};
 
 #[test]
 fn test_smtp_mock() {
@@ -49,7 +47,7 @@ fn test_smtp_mock() {
     let mailer = SmtpTransport::relay("127.0.0.1")
         .unwrap()
         .tls(Tls::None)
-        .port(2525)
+        .port(smtp_server_mocker.port())
         .timeout(Some(Duration::from_secs(1)))
         .build();
     // Send the email

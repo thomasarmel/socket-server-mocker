@@ -6,10 +6,11 @@
 //!
 //! If so, errors can be retrieved with [`ServerMocker::pop_server_error`](crate::server_mocker::ServerMocker::pop_server_error) method.
 
-use crate::server_mocker_instruction::Instruction;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::mpsc::SendError;
+
+use crate::server_mocker_instruction::Instruction;
 
 /// Represents an error raised by a server mocker.
 ///

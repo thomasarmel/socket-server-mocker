@@ -2,12 +2,15 @@
 //!
 //! Mock an IP server for testing application that connect to external server.
 
-pub mod server_mocker_error;
-pub mod tcp_server_mocker;
-pub mod udp_server_mocker;
+pub(crate) mod server_mocker_error;
+pub(crate) mod tcp_server_mocker;
+pub(crate) mod udp_server_mocker;
 
-use crate::server_mocker_error::ServerMockerError;
-use crate::server_mocker_instruction::{BinaryMessage, Instruction};
+use std::net::SocketAddr;
+use std::time::Duration;
+
+use crate::server_mocker_instruction::Instruction;
+use crate::ServerMockerError;
 
 /// Trait that define the behavior of a network server mocker over an IP layer.
 ///
@@ -17,14 +20,14 @@ use crate::server_mocker_instruction::{BinaryMessage, Instruction};
 ///
 /// You can later check that the messages sent by the tested application are the ones expected.
 pub trait ServerMocker {
-    /// Default timeout in milliseconds for the server to wait for a message from the client.
-    const DEFAULT_NET_TIMEOUT_MS: u64 = 100;
+    /// Default timeout for the server to wait for a message from the client.
+    const DEFAULT_NET_TIMEOUT: Duration = Duration::from_millis(100);
 
     /// Timeout if no more instruction is available and [`Instruction::StopExchange`] hasn't been sent
-    const DEFAULT_THREAD_RECEIVER_TIMEOUT_MS: u64 = 100;
+    const DEFAULT_THREAD_RECEIVER_TIMEOUT: Duration = Duration::from_secs(100);
 
     /// Returns the socket address on which the mock server is listening
-    fn socket_address(&self) -> std::net::SocketAddr;
+    fn socket_address(&self) -> SocketAddr;
 
     /// Returns the port on which the mock server is listening
     ///
@@ -43,7 +46,7 @@ pub trait ServerMocker {
     ///
     /// If you push a [`Instruction::SendMessage`] instruction, you must ensure that there is a client connected to the server mocker
     ///
-    /// If you push a [`Instruction::ReceiveMessage`] instruction, you must ensure that the client will send a message to the server mocker within the timeout defined in [`ServerMocker::DEFAULT_NET_TIMEOUT_MS`]
+    /// If you push a [`Instruction::ReceiveMessage`] instruction, you must ensure that the client will send a message to the server mocker within the timeout defined in [`ServerMocker::DEFAULT_NET_TIMEOUT`]
     fn add_mock_instructions(
         &self,
         instructions: Vec<Instruction>,
@@ -51,13 +54,13 @@ pub trait ServerMocker {
 
     /// Return first message received by the mock server on the messages queue
     ///
-    /// If no message is available, wait for [`ServerMocker::DEFAULT_NET_TIMEOUT_MS`] and then return None
+    /// If no message is available, wait for [`ServerMocker::DEFAULT_NET_TIMEOUT`] and then return None
     ///
     /// If a message is available, will return the message and remove it from the queue
-    fn pop_received_message(&self) -> Option<BinaryMessage>;
+    fn pop_received_message(&self) -> Option<Vec<u8>>;
 
     /// Return first [error](ServerMockerError) received by the mock server on the errors queue
     ///
-    /// If no error is available, wait for [`ServerMocker::DEFAULT_NET_TIMEOUT_MS`] and then return None
+    /// If no error is available, wait for [`ServerMocker::DEFAULT_NET_TIMEOUT`] and then return None
     fn pop_server_error(&self) -> Option<ServerMockerError>;
 }

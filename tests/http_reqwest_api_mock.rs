@@ -1,8 +1,7 @@
-use socket_server_mocker::server_mocker::ServerMocker;
-use socket_server_mocker::server_mocker_instruction::Instruction::{
-    ReceiveMessage, SendMessage, StopExchange,
-};
-use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
+use std::str::from_utf8;
+
+use socket_server_mocker::Instruction::{ReceiveMessage, SendMessage, StopExchange};
+use socket_server_mocker::{ServerMocker, TcpServerMocker};
 
 #[test]
 fn http_get() {
@@ -37,7 +36,7 @@ fn http_get() {
             "GET / HTTP/1.1\r\naccept: */*\r\nhost: localhost:{}\r\n\r\n",
             http_server_mocker.port()
         ),
-        std::str::from_utf8(&http_server_mocker.pop_received_message().unwrap()).unwrap()
+        from_utf8(&http_server_mocker.pop_received_message().unwrap()).unwrap()
     );
 
     // Check that no error has been raised by the mocked server

@@ -8,9 +8,9 @@
 //! Mock a HTTP server:
 //! ```
 //! use std::str::from_utf8;
-//! use socket_server_mocker::server_mocker::ServerMocker;
-//! use socket_server_mocker::server_mocker_instruction::Instruction::{ReceiveMessage, SendMessage, StopExchange};
-//! use socket_server_mocker::tcp_server_mocker::TcpServerMocker;
+//! use socket_server_mocker::ServerMocker;
+//! use socket_server_mocker::Instruction::{ReceiveMessage, SendMessage, StopExchange};
+//! use socket_server_mocker::TcpServerMocker;
 //!
 //! // Mock HTTP server on a random free port
 //! let http_server_mocker = TcpServerMocker::new().unwrap();
@@ -53,8 +53,11 @@
 //! assert!(http_server_mocker.pop_server_error().is_none());
 //! ```
 
-pub mod server_mocker;
-pub mod server_mocker_instruction;
-pub use server_mocker::server_mocker_error;
-pub use server_mocker::tcp_server_mocker;
-pub use server_mocker::udp_server_mocker;
+mod server_mocker;
+mod server_mocker_instruction;
+
+pub use server_mocker::server_mocker_error::ServerMockerError;
+pub use server_mocker::tcp_server_mocker::TcpServerMocker;
+pub use server_mocker::udp_server_mocker::UdpServerMocker;
+pub use server_mocker::ServerMocker;
+pub use server_mocker_instruction::Instruction;
