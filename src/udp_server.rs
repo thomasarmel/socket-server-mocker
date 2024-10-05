@@ -7,14 +7,12 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 
-use crate::server_mocker::ServerMocker;
-use crate::server_mocker_instruction::Instruction;
-use crate::server_mocker_instruction::Instruction::{
-    ReceiveMessageWithMaxSize, SendMessage, SendMessageDependingOnLastReceivedMessage,
+use crate::Instruction::{
+    self, ReceiveMessageWithMaxSize, SendMessage, SendMessageDependingOnLastReceivedMessage,
 };
-use crate::ServerMockerError;
+use crate::ServerMocker;
 use crate::ServerMockerError::{
-    FailedToSendUdpMessage, GotSendMessageBeforeReceiveMessage, UnableToBindListener,
+    self, FailedToSendUdpMessage, GotSendMessageBeforeReceiveMessage, UnableToBindListener,
     UnableToGetLocalAddress, UnableToReadUdpStream, UnableToSendInstructions,
     UnableToSetReadTimeout,
 };
@@ -43,10 +41,7 @@ impl UdpServerMocker {
     /// Create a new instance of the UDP server mocker on the given port.
     /// If the port is already in use, the method will return an error.
     pub fn new_with_port(port: u16) -> Result<Self, ServerMockerError> {
-        let (instruction_tx, instruction_rx): (
-            Sender<Vec<Instruction>>,
-            Receiver<Vec<Instruction>>,
-        ) = mpsc::channel();
+        let (instruction_tx, instruction_rx) = mpsc::channel();
         let (message_tx, message_rx) = mpsc::channel();
         let (error_tx, error_rx) = mpsc::channel();
 
@@ -125,13 +120,13 @@ impl UdpServerMocker {
 
     fn handle_dgram_stream(
         connection: &UdpSocket,
-        instructions_receiver: &Receiver<Vec<Instruction>>,
-        message_sender: &Sender<Vec<u8>>,
-        error_sender: &Sender<ServerMockerError>,
+        instruction_rx: &Receiver<Vec<Instruction>>,
+        message_tx: &Sender<Vec<u8>>,
+        error_tx: &Sender<ServerMockerError>,
     ) {
         let timeout = Some(Self::DEFAULT_NET_TIMEOUT);
         if let Err(e) = connection.set_read_timeout(timeout) {
-            error_sender.send(UnableToSetReadTimeout(e)).unwrap();
+            error_tx.send(UnableToSetReadTimeout(e)).unwrap();
             return;
         }
 
@@ -140,10 +135,10 @@ impl UdpServerMocker {
 
         // Timeout: if no more instruction is available and StopExchange hasn't been sent
         // Stop server if no more instruction is available and StopExchange hasn't been sent
-        while let Ok(instructions_list) =
-            instructions_receiver.recv_timeout(Self::DEFAULT_THREAD_RECEIVER_TIMEOUT)
+        while let Ok(instructions) =
+            instruction_rx.recv_timeout(Self::DEFAULT_THREAD_RECEIVER_TIMEOUT)
         {
-            for instruction in instructions_list {
+            for instruction in instructions {
                 match instruction {
                     SendMessage(binary_message) => {
                         if let Err(e) = Self::send_packet_to_last_client(
@@ -151,7 +146,7 @@ impl UdpServerMocker {
                             &binary_message,
                             &last_received_packed_with_addr,
                         ) {
-                            error_sender.send(e).unwrap();
+                            error_tx.send(e).unwrap();
                         }
                     }
                     SendMessageDependingOnLastReceivedMessage(sent_message_calculator) => {
@@ -167,7 +162,7 @@ impl UdpServerMocker {
                                 &message_to_send,
                                 &last_received_packed_with_addr,
                             ) {
-                                error_sender.send(e).unwrap();
+                                error_tx.send(e).unwrap();
                             }
                         }
                     }
@@ -176,7 +171,7 @@ impl UdpServerMocker {
                             match Self::receive_packet(connection, Self::MAX_UDP_PACKET_SIZE) {
                                 Ok(received) => received,
                                 Err(e) => {
-                                    error_sender.send(e).unwrap();
+                                    error_tx.send(e).unwrap();
                                     continue;
                                 }
                             };
@@ -185,16 +180,16 @@ impl UdpServerMocker {
                             received_packet_with_addr.0,
                             received_packet_with_addr.1.clone(),
                         ));
-                        message_sender.send(received_packet_with_addr.1).unwrap();
+                        message_tx.send(received_packet_with_addr.1).unwrap();
                     }
                     ReceiveMessageWithMaxSize(max_message_size) => {
                         match Self::receive_packet(connection, max_message_size) {
                             Ok(received) => {
                                 last_received_packed_with_addr =
                                     Some((received.0, received.1.clone()));
-                                message_sender.send(received.1).unwrap();
+                                message_tx.send(received.1).unwrap();
                             }
-                            Err(e) => error_sender.send(e).unwrap(),
+                            Err(e) => error_tx.send(e).unwrap(),
                         };
                     }
                     Instruction::StopExchange => {

@@ -21,12 +21,12 @@ fn test_simple_tcp() {
     tcp_server_mocker
         .add_mock_instructions(vec![
             ReceiveMessageWithMaxSize(16), // The mocked server will first wait for the client to send a message
-            SendMessage("hello from server".as_bytes().to_vec()), // Then it will send a message to the client
+            SendMessage(b"hello from server".to_vec()), // Then it will send a message to the client
         ])
         .unwrap();
 
     // TCP client sends its first message
-    client.write_all("hello from client".as_bytes()).unwrap();
+    client.write_all(b"hello from client").unwrap();
 
     // Read a message sent by the mocked server
     let mut buffer = [0; 1024];
@@ -74,7 +74,7 @@ fn test_simple_tcp() {
         .unwrap();
 
     // Tested client send a message to the mocked server
-    client.write_all("hello2 from client".as_bytes()).unwrap();
+    client.write_all(b"hello2 from client").unwrap();
 
     // Read a message sent by the mocked server
     let mut buffer = [0; 1024];

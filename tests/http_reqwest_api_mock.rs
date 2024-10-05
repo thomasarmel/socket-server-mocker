@@ -12,7 +12,7 @@ fn http_get() {
         // Wait for a HTTP GET request
         ReceiveMessage,
         // Send a HTTP response
-        SendMessage("HTTP/1.1 200 OK\r\nServer: socket-server-mocker-fake-http\r\nContent-Length: 12\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nHello, world".as_bytes().to_vec()),
+        SendMessage(b"HTTP/1.1 200 OK\r\nServer: socket-server-mocker-fake-http\r\nContent-Length: 12\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nHello, world".to_vec()),
         // Close the connection
         StopExchange,
     ]).unwrap();

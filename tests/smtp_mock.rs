@@ -12,17 +12,17 @@ fn test_smtp_mock() {
 
     // Mocked server behavior
     smtp_server_mocker.add_mock_instructions(vec![
-        SendMessage("220 smtp.localhost.mock ESMTP Mocker\r\n".as_bytes().to_vec()),
+        SendMessage(b"220 smtp.localhost.mock ESMTP Mocker\r\n".to_vec()),
         ReceiveMessage,
-        SendMessage("250-smtp.localhost.mock\r\n250-PIPELINING\r\n250-SIZE 20971520\r\n250-ETRN\r\n250-STARTTLS\r\n250-ENHANCEDSTATUSCODES\r\n250 8BITMIME\r\n".as_bytes().to_vec()),
+        SendMessage(b"250-smtp.localhost.mock\r\n250-PIPELINING\r\n250-SIZE 20971520\r\n250-ETRN\r\n250-STARTTLS\r\n250-ENHANCEDSTATUSCODES\r\n250 8BITMIME\r\n".to_vec()),
         ReceiveMessage,
-        SendMessage("250 2.1.0 Ok\r\n".as_bytes().to_vec()),
+        SendMessage(b"250 2.1.0 Ok\r\n".to_vec()),
         ReceiveMessage,
-        SendMessage("250 2.1.5 Ok\r\n".as_bytes().to_vec()),
+        SendMessage(b"250 2.1.5 Ok\r\n".to_vec()),
         ReceiveMessage,
-        SendMessage("354 End data with <CR><LF>.<CR><LF>\r\n".as_bytes().to_vec()),
+        SendMessage(b"354 End data with <CR><LF>.<CR><LF>\r\n".to_vec()),
         ReceiveMessage,
-        SendMessage("250 2.0.0 Ok: queued as 1C1A1B1C1D1E1F1G1H1I1J1K1L1M1N1O1P1Q1R1S1T1U1V1W1X1Y1Z\r\n".as_bytes().to_vec()),
+        SendMessage(b"250 2.0.0 Ok: queued as 1C1A1B1C1D1E1F1G1H1I1J1K1L1M1N1O1P1Q1R1S1T1U1V1W1X1Y1Z\r\n".to_vec()),
         StopExchange,
     ]).unwrap();
 
@@ -55,24 +55,29 @@ fn test_smtp_mock() {
 
     // Check that the server received the expected SMTP message
     assert_eq!(
-        "EHLO ".as_bytes().to_vec(),
-        smtp_server_mocker.pop_received_message().unwrap()[..5]
+        b"EHLO ",
+        &smtp_server_mocker.pop_received_message().unwrap()[..5]
     );
     assert_eq!(
-        "MAIL FROM:<alice.dupont@localhost.mock>\r\n"
-            .as_bytes()
-            .to_vec(),
-        smtp_server_mocker.pop_received_message().unwrap()
+        b"MAIL FROM:<alice.dupont@localhost.mock>\r\n",
+        smtp_server_mocker
+            .pop_received_message()
+            .unwrap()
+            .as_slice()
     );
     assert_eq!(
-        "RCPT TO:<bob.dupond@localhost.mock>\r\n"
-            .as_bytes()
-            .to_vec(),
-        smtp_server_mocker.pop_received_message().unwrap()
+        b"RCPT TO:<bob.dupond@localhost.mock>\r\n",
+        smtp_server_mocker
+            .pop_received_message()
+            .unwrap()
+            .as_slice()
     );
     assert_eq!(
-        "DATA\r\n".as_bytes().to_vec(),
-        smtp_server_mocker.pop_received_message().unwrap()
+        b"DATA\r\n",
+        smtp_server_mocker
+            .pop_received_message()
+            .unwrap()
+            .as_slice()
     );
 
     let mail_payload_str =

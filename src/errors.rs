@@ -2,21 +2,20 @@
 //!
 //! `server_mocker_error` is a type representing an error raised by a server mocker. It's mainly errors raised by the underlying socket server.
 //!
-//! The error is raised directly during call to [`ServerMocker`](crate::server_mocker::ServerMocker) methods, or when the server mocker is running asynchronously and an error occurs.
+//! The error is raised directly during call to [`ServerMocker`](crate::ServerMocker) methods, or when the server mocker is running asynchronously and an error occurs.
 //!
-//! If so, errors can be retrieved with [`ServerMocker::pop_server_error`](crate::server_mocker::ServerMocker::pop_server_error) method.
+//! If so, errors can be retrieved with [`ServerMocker::pop_server_error`](crate::ServerMocker::pop_server_error) method.
 
 use std::io;
 use std::net::SocketAddr;
 use std::sync::mpsc::SendError;
 
-use crate::server_mocker_instruction::Instruction;
+use crate::Instruction;
 
 /// Represents an error raised by a server mocker.
 ///
-/// The error is raised directly during call to [`ServerMocker`](crate::server_mocker::ServerMocker) methods, or when the server mocker is running asynchronously and an error occurs.
-///
-/// If so, errors can be retrieved with [`ServerMocker::pop_server_error`](crate::server_mocker::ServerMocker::pop_server_error) method.
+/// The error is raised directly during call to [`ServerMocker`](crate::ServerMocker) methods, or when the server mocker is running asynchronously and an error occurs.
+/// If so, errors can be retrieved with [`ServerMocker::pop_server_error`](crate::ServerMocker::pop_server_error) method.
 #[derive(Debug, thiserror::Error)]
 #[allow(missing_docs)]
 pub enum ServerMockerError {

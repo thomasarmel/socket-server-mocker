@@ -2,15 +2,10 @@
 //!
 //! Mock an IP server for testing application that connect to external server.
 
-pub(crate) mod server_mocker_error;
-pub(crate) mod tcp_server_mocker;
-pub(crate) mod udp_server_mocker;
-
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use crate::server_mocker_instruction::Instruction;
-use crate::ServerMockerError;
+use crate::{Instruction, ServerMockerError};
 
 /// Trait that define the behavior of a network server mocker over an IP layer.
 ///
