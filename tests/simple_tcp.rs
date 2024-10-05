@@ -12,13 +12,13 @@ use socket_server_mocker::{ServerMocker, TcpServerMocker};
 #[test]
 fn test_simple_tcp() {
     // Mock a TCP server listening on port 35642. Note that the mock will only listen on the local interface.
-    let tcp_server_mocker = TcpServerMocker::new_with_port(35642).unwrap();
+    let server = TcpServerMocker::new_with_port(35642).unwrap();
 
     // Create the TCP client to test
-    let mut client = TcpStream::connect("127.0.0.1:35642").unwrap();
+    let mut client = TcpStream::connect(server.socket_address()).unwrap();
 
     // Mocked server behavior
-    tcp_server_mocker
+    server
         .add_mock_instructions(vec![
             ReceiveMessageWithMaxSize(16), // The mocked server will first wait for the client to send a message
             SendMessage(b"hello from server".to_vec()), // Then it will send a message to the client
@@ -42,7 +42,7 @@ fn test_simple_tcp() {
     // The message is only 16 bytes, the letter 't' is dropped
     assert_eq!(
         "hello from clien",
-        from_utf8(&tcp_server_mocker.pop_received_message().unwrap()).unwrap()
+        from_utf8(&server.pop_received_message().unwrap()).unwrap()
     );
 
     // New instructions for the mocked server
@@ -69,9 +69,7 @@ fn test_simple_tcp() {
         StopExchange,
     ];
 
-    tcp_server_mocker
-        .add_mock_instructions(instructions)
-        .unwrap();
+    server.add_mock_instructions(instructions).unwrap();
 
     // Tested client send a message to the mocked server
     client.write_all(b"hello2 from client").unwrap();
@@ -87,44 +85,44 @@ fn test_simple_tcp() {
 
     assert_eq!(
         "hello2 from client",
-        from_utf8(&tcp_server_mocker.pop_received_message().unwrap()).unwrap()
+        from_utf8(&server.pop_received_message().unwrap()).unwrap()
     );
 
     // Check that no error has been raised by the mocked server
-    assert!(tcp_server_mocker.pop_server_error().is_none());
+    assert!(server.pop_server_error().is_none());
 }
 
 #[test]
 fn test_try_listen_twice_on_same_port() {
     // First TcpServerMocker will listen on a random free port
-    let tcp_server_mocker = TcpServerMocker::new().unwrap();
+    let server = TcpServerMocker::new().unwrap();
     // Second TcpServerMocker will try to listen on the same port
-    let tcp_server_mocker2 = TcpServerMocker::new_with_port(tcp_server_mocker.port());
+    let server2 = TcpServerMocker::new_with_port(server.port());
     // The second TcpServerMocker should fail to listen on the same port
-    assert!(tcp_server_mocker2.is_err());
+    assert!(server2.is_err());
 }
 
 #[test]
 fn test_receive_timeout() {
     // Mock a TCP server listening on a random free port
-    let tcp_server_mocker = TcpServerMocker::new().unwrap();
+    let server = TcpServerMocker::new().unwrap();
 
     // Create the TCP client to test
-    let _client = TcpStream::connect(format!("127.0.0.1:{}", tcp_server_mocker.port())).unwrap();
+    let _client = TcpStream::connect(server.socket_address()).unwrap();
 
     // Mocked server behavior
-    tcp_server_mocker
+    server
         .add_mock_instructions(vec![
             // Expect to receive a message from the client
             ReceiveMessage,
         ])
         .unwrap();
 
-    // Wait twice the receive timeout
-    sleep(2 * TcpServerMocker::DEFAULT_NET_TIMEOUT);
+    // Wait twice the timeout
+    sleep(2 * server.options().rx_timeout);
 
     // Check that the mocked server has raised an error
-    let tcp_server_error = tcp_server_mocker.pop_server_error();
+    let tcp_server_error = server.pop_server_error();
     assert!(tcp_server_error.is_some());
     let tcp_server_error = tcp_server_error.unwrap();
     assert!(!tcp_server_error.is_fatal());

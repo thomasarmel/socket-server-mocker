@@ -14,9 +14,9 @@
 //! use socket_server_mocker::TcpServerMocker;
 //!
 //! // Mock HTTP server on a random free port
-//! let http_server_mocker = TcpServerMocker::new().unwrap();
+//! let server = TcpServerMocker::new().unwrap();
 //!
-//! http_server_mocker.add_mock_instructions(vec![
+//! server.add_mock_instructions(vec![
 //!   // Wait for an HTTP GET request
 //!   ReceiveMessage,
 //!   // Send an HTTP response
@@ -29,7 +29,7 @@
 //! let client = reqwest::blocking::Client::new();
 //! // Send an HTTP GET request to the mocked server
 //! let response = client
-//!   .get(format!("http://localhost:{}/", http_server_mocker.port()))
+//!   .get(format!("http://localhost:{}/", server.port()))
 //!   .send()
 //!   .unwrap();
 //!
@@ -42,13 +42,13 @@
 //! assert_eq!(
 //!   format!(
 //!     "GET / HTTP/1.1\r\naccept: */*\r\nhost: localhost:{}\r\n\r\n",
-//!     http_server_mocker.port()
+//!     server.port()
 //!     ),
-//!     from_utf8(&*http_server_mocker.pop_received_message().unwrap()).unwrap()
+//!     from_utf8(&*server.pop_received_message().unwrap()).unwrap()
 //!   );
 //!
 //! // Check that no error has been raised by the mocked server
-//! assert!(http_server_mocker.pop_server_error().is_none());
+//! assert!(server.pop_server_error().is_none());
 //! ```
 
 mod errors;
@@ -60,5 +60,5 @@ mod udp_server;
 pub use errors::ServerMockerError;
 pub use instructions::Instruction;
 pub use server_mocker::ServerMocker;
-pub use tcp_server::TcpServerMocker;
-pub use udp_server::UdpServerMocker;
+pub use tcp_server::{TcpMockerOptions, TcpServerMocker};
+pub use udp_server::{UdpMockerOptions, UdpServerMocker};

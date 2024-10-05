@@ -13,9 +13,9 @@ use trust_dns_client::udp::UdpClientConnection;
 
 #[test]
 fn test_dns_mock() {
-    let dns_server_mocker = UdpServerMocker::new().unwrap();
+    let server = UdpServerMocker::new().unwrap();
 
-    dns_server_mocker
+    server
         .add_mock_instructions(vec![
             // Receive a DNS query
             ReceiveMessageWithMaxSize(512),
@@ -38,10 +38,7 @@ fn test_dns_mock() {
         ])
         .unwrap();
 
-    let address = format!("127.0.0.1:{}", dns_server_mocker.port())
-        .parse()
-        .unwrap();
-    let conn = UdpClientConnection::new(address).unwrap();
+    let conn = UdpClientConnection::new(server.socket_address()).unwrap();
 
     // create the DNS client
     let client = SyncClient::new(conn);
@@ -62,9 +59,9 @@ fn test_dns_mock() {
 
     assert_eq!(
         b"\x01\x00\x00\x01\x00\x00\x00\x00\x00\x01\x03www\x07example\x03com\x00\x00\x01\x00\x01\x00\x00)\x04\xD0\x00\x00\x00\x00\x00\x00",
-        &dns_server_mocker.pop_received_message().unwrap()[2..]
+        &server.pop_received_message().unwrap()[2..]
     );
 
     // Check that no error has been raised by the mocked server
-    assert!(dns_server_mocker.pop_server_error().is_none());
+    assert!(server.pop_server_error().is_none());
 }

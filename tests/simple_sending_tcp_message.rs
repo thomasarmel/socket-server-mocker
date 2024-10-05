@@ -7,13 +7,12 @@ use socket_server_mocker::{ServerMocker, TcpServerMocker};
 #[test]
 fn simple_sending_message_test_random_port() {
     // Use random free port
-    let tcp_server_mocker = TcpServerMocker::new().unwrap();
-    let mock_port = tcp_server_mocker.port();
+    let server = TcpServerMocker::new().unwrap();
 
     // Connect to the mocked server
-    let mut client = TcpStream::connect(format!("127.0.0.1:{mock_port}")).unwrap();
+    let mut client = TcpStream::connect(server.socket_address()).unwrap();
 
-    tcp_server_mocker
+    server
         .add_mock_instructions(vec![
             SendMessage(vec![1, 2, 3]),
             // We accidentally forgot ServerMockerInstruction::StopExchange,
@@ -27,5 +26,5 @@ fn simple_sending_message_test_random_port() {
     assert_eq!([1, 2, 3], buffer[..received_size]);
 
     // Check that no error has been raised by the mocked server
-    assert!(tcp_server_mocker.pop_server_error().is_none());
+    assert!(server.pop_server_error().is_none());
 }

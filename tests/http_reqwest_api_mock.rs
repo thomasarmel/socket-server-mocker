@@ -6,9 +6,9 @@ use socket_server_mocker::{ServerMocker, TcpServerMocker};
 #[test]
 fn http_get() {
     // Mock HTTP server on a random free port
-    let http_server_mocker = TcpServerMocker::new().unwrap();
+    let server = TcpServerMocker::new().unwrap();
 
-    http_server_mocker.add_mock_instructions(vec![
+    server.add_mock_instructions(vec![
         // Wait for a HTTP GET request
         ReceiveMessage,
         // Send a HTTP response
@@ -21,7 +21,7 @@ fn http_get() {
     let client = reqwest::blocking::Client::new();
     // Send a HTTP GET request to the mocked server
     let response = client
-        .get(format!("http://localhost:{}/", http_server_mocker.port()))
+        .get(format!("http://localhost:{}/", server.port()))
         .send()
         .unwrap();
 
@@ -34,11 +34,11 @@ fn http_get() {
     assert_eq!(
         format!(
             "GET / HTTP/1.1\r\naccept: */*\r\nhost: localhost:{}\r\n\r\n",
-            http_server_mocker.port()
+            server.port()
         ),
-        from_utf8(&http_server_mocker.pop_received_message().unwrap()).unwrap()
+        from_utf8(&server.pop_received_message().unwrap()).unwrap()
     );
 
     // Check that no error has been raised by the mocked server
-    assert!(http_server_mocker.pop_server_error().is_none());
+    assert!(server.pop_server_error().is_none());
 }
