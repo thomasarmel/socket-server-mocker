@@ -5,12 +5,18 @@ use std::thread::sleep;
 use socket_server_mocker::Instruction::{
     ReceiveMessageWithMaxSize, SendMessage, SendMessageDependingOnLastReceivedMessage,
 };
-use socket_server_mocker::{ServerMocker, UdpServerMocker};
+use socket_server_mocker::{ServerMocker, ServerMockerError, UdpMocker};
 
 #[test]
 fn test_simple_udp() {
-    // Mock a UDP server listening on port 35642. Note that the mock will only listen on the local interface.
-    let server = UdpServerMocker::new_with_port(35642).unwrap();
+    // Mock a TCP server listening on a specific port. Note that the mock will only listen on the local interface.
+    let options = UdpMocker {
+        socket_addr: "127.0.0.1:35643".parse().unwrap(),
+        ..UdpMocker::default()
+    };
+
+    // Mock a UDP server
+    let server = ServerMocker::new_with_opts(options).unwrap();
 
     // Create the UDP client to test
     let client_socket = UdpSocket::bind("127.0.0.1:34254").unwrap();
@@ -75,18 +81,21 @@ fn test_simple_udp() {
 
 #[test]
 fn test_try_listen_twice_on_same_port() {
-    // First UdpServerMocker will listen on a random free port
-    let server = UdpServerMocker::new().unwrap();
-    // Second UdpServerMocker will try to listen on the same port
-    let server2 = UdpServerMocker::new_with_port(server.port());
-    // The second UdpServerMocker should fail to listen on the same port
-    assert!(server2.is_err());
+    // First server will listen on a random free port
+    let server = ServerMocker::udp().unwrap();
+    // Second server will try to listen on the same port
+    let server2 = ServerMocker::udp_with_port(server.port());
+    // The second server should fail to listen on the same port
+    assert!(matches!(
+        server2,
+        Err(ServerMockerError::UnableToBindListener(..))
+    ));
 }
 
 #[test]
 fn test_try_receive_before_send() {
     // Mock a UDP server listening on random port
-    let server = UdpServerMocker::new().unwrap();
+    let server = ServerMocker::udp().unwrap();
 
     // Mocked server behavior
     server
@@ -114,7 +123,7 @@ fn test_try_receive_before_send() {
 #[test]
 fn test_receive_timeout() {
     // Mock a UDP server listening on a random free port
-    let server = UdpServerMocker::new().unwrap();
+    let server = ServerMocker::udp().unwrap();
 
     // Mocked server behavior
     server

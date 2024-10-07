@@ -7,12 +7,17 @@ use socket_server_mocker::Instruction::{
     ReceiveMessage, ReceiveMessageWithMaxSize, SendMessage,
     SendMessageDependingOnLastReceivedMessage, StopExchange,
 };
-use socket_server_mocker::{ServerMocker, TcpServerMocker};
+use socket_server_mocker::{ServerMocker, ServerMockerError, TcpMocker};
 
 #[test]
 fn test_simple_tcp() {
-    // Mock a TCP server listening on port 35642. Note that the mock will only listen on the local interface.
-    let server = TcpServerMocker::new_with_port(35642).unwrap();
+    // Mock a TCP server listening on a specific port. Note that the mock will only listen on the local interface.
+    let options = TcpMocker {
+        socket_addr: "127.0.0.1:35642".parse().unwrap(),
+        ..TcpMocker::default()
+    };
+
+    let server = ServerMocker::new_with_opts(options).unwrap();
 
     // Create the TCP client to test
     let mut client = TcpStream::connect(server.socket_address()).unwrap();
@@ -94,18 +99,21 @@ fn test_simple_tcp() {
 
 #[test]
 fn test_try_listen_twice_on_same_port() {
-    // First TcpServerMocker will listen on a random free port
-    let server = TcpServerMocker::new().unwrap();
-    // Second TcpServerMocker will try to listen on the same port
-    let server2 = TcpServerMocker::new_with_port(server.port());
-    // The second TcpServerMocker should fail to listen on the same port
-    assert!(server2.is_err());
+    // First server will listen on a random free port
+    let server = ServerMocker::tcp().unwrap();
+    // Second server will try to listen on the same port
+    let server2 = ServerMocker::tcp_with_port(server.port());
+    // The second server should fail to listen on the same port
+    assert!(matches!(
+        server2,
+        Err(ServerMockerError::UnableToBindListener(..))
+    ));
 }
 
 #[test]
 fn test_receive_timeout() {
     // Mock a TCP server listening on a random free port
-    let server = TcpServerMocker::new().unwrap();
+    let server = ServerMocker::tcp().unwrap();
 
     // Create the TCP client to test
     let _client = TcpStream::connect(server.socket_address()).unwrap();
@@ -122,8 +130,8 @@ fn test_receive_timeout() {
     sleep(2 * server.options().rx_timeout);
 
     // Check that the mocked server has raised an error
-    let tcp_server_error = server.pop_server_error();
-    assert!(tcp_server_error.is_some());
-    let tcp_server_error = tcp_server_error.unwrap();
-    assert!(!tcp_server_error.is_fatal());
+    let err = server.pop_server_error();
+    assert!(err.is_some());
+    let err = err.unwrap();
+    assert!(!err.is_fatal());
 }
