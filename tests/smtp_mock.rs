@@ -3,12 +3,12 @@ use std::time::Duration;
 use lettre::transport::smtp::client::Tls;
 use lettre::{Message, SmtpTransport, Transport};
 use socket_server_mocker::Instruction::{ReceiveMessage, SendMessage, StopExchange};
-use socket_server_mocker::{ServerMocker, TcpServerMocker};
+use socket_server_mocker::ServerMocker;
 
 #[test]
 fn test_smtp_mock() {
     // Create an SMTP TCP server mocker listening on port 2525 (SMTP default port is 25)
-    let server = TcpServerMocker::new_with_port(2525).unwrap();
+    let server = ServerMocker::tcp_with_port(2525).unwrap();
 
     // Mocked server behavior
     server.add_mock_instructions(vec![

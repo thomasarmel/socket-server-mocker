@@ -2,12 +2,12 @@ use std::io::Read;
 use std::net::TcpStream;
 
 use socket_server_mocker::Instruction::SendMessage;
-use socket_server_mocker::{ServerMocker, TcpServerMocker};
+use socket_server_mocker::ServerMocker;
 
 #[test]
 fn simple_sending_message_test_random_port() {
     // Use random free port
-    let server = TcpServerMocker::new().unwrap();
+    let server = ServerMocker::tcp().unwrap();
 
     // Connect to the mocked server
     let mut client = TcpStream::connect(server.socket_address()).unwrap();

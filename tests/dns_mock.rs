@@ -4,7 +4,7 @@ use std::str::FromStr;
 use socket_server_mocker::Instruction::{
     ReceiveMessageWithMaxSize, SendMessageDependingOnLastReceivedMessage, StopExchange,
 };
-use socket_server_mocker::{ServerMocker, UdpServerMocker};
+use socket_server_mocker::ServerMocker;
 use trust_dns_client::client::{Client, SyncClient};
 use trust_dns_client::op::DnsResponse;
 use trust_dns_client::rr::rdata::A;
@@ -13,7 +13,7 @@ use trust_dns_client::udp::UdpClientConnection;
 
 #[test]
 fn test_dns_mock() {
-    let server = UdpServerMocker::new().unwrap();
+    let server = ServerMocker::udp().unwrap();
 
     server
         .add_mock_instructions(vec![

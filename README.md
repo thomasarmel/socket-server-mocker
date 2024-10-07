@@ -34,13 +34,12 @@ Here is a simple example in TCP:
 ```rust
 use socket_server_mocker::ServerMocker;
 use socket_server_mocker::Instruction::*;
-use socket_server_mocker::TcpServerMocker;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::str::from_utf8;
 
 // Mock a TCP server listening on port 35642. Note that the mock will only listen on the local interface.
-let server = TcpServerMocker::new_with_port(35642).unwrap();
+let server = ServerMocker::tcp_with_port(35642).unwrap();
 
 // Create the TCP client to test
 let mut client = TcpStream::connect(server.socket_address()).unwrap();
@@ -110,13 +109,13 @@ assert!(server.pop_server_error().is_none());
 Another example in UDP:
 
 ```rust
-use socket_server_mocker::{ServerMocker, UdpServerMocker};
+use socket_server_mocker::ServerMocker;
 use socket_server_mocker::Instruction::{SendMessage, SendMessageDependingOnLastReceivedMessage, ReceiveMessageWithMaxSize};
 use std::net::UdpSocket;
 use std::str::from_utf8;
 
 // Mock a UDP server listening on port 35642. Note that the mock will only listen on the local interface.
-let server = UdpServerMocker::new_with_port(35642).unwrap();
+let server = ServerMocker::udp_with_port(35642).unwrap();
 
 // Create the UDP client to test at a random port
 let client_socket = UdpSocket::bind("127.0.0.1:0").unwrap();
