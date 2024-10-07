@@ -2,7 +2,7 @@
 name = "socket-server-mocker"
 description = "Mock socket server in Rust, for testing various network clients."
 authors = ["Thomas Prévost", "Yuri Astrakhan <YuriAstrakhan>@gmail.com"]
-version = "0.3.1"
+version = "0.4.0"
 rust-version = "1.74.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"

@@ -21,7 +21,7 @@ Add the **socket-server-mocker** dependency to your `Cargo.toml` for testing com
 
 ```toml
 [dev-dependencies]
-socket-server-mocker = "0.3"
+socket-server-mocker = "0.4"
 ```
 
 ## Example
@@ -40,13 +40,13 @@ use std::net::TcpStream;
 use std::str::from_utf8;
 
 // Mock a TCP server listening on port 35642. Note that the mock will only listen on the local interface.
-let tcp_server_mocker = TcpServerMocker::new_with_port(35642).unwrap();
+let server = TcpServerMocker::new_with_port(35642).unwrap();
 
 // Create the TCP client to test
-let mut client = TcpStream::connect("127.0.0.1:35642").unwrap();
+let mut client = TcpStream::connect(server.socket_address()).unwrap();
 
 // Mocked server behavior
-tcp_server_mocker.add_mock_instructions(vec![
+server.add_mock_instructions(vec![
     ReceiveMessageWithMaxSize(16), // The mocked server will first wait for the client to send a message
     SendMessage(b"hello from server".to_vec()), // Then it will send a message to the client
 ]);
@@ -67,11 +67,11 @@ assert_eq!("hello from server", received_message);
 // Check that the mocked server received the message sent by the client
 assert_eq!(
     "hello from clien", // Max 16 bytes, the word "client" is truncated
-    from_utf8(tcp_server_mocker.pop_received_message().unwrap().as_ref()).unwrap()
+    from_utf8(server.pop_received_message().unwrap().as_ref()).unwrap()
 );
 
 // New instructions for the mocked server
-tcp_server_mocker.add_mock_instructions(vec![
+server.add_mock_instructions(vec![
     ReceiveMessage, // Wait for another message from the tested client
     SendMessageDependingOnLastReceivedMessage(|_| {
         None
@@ -100,11 +100,11 @@ assert_eq!("hello2 from server", received_message);
 
 assert_eq!(
     "hello2 from client",
-    from_utf8(&*tcp_server_mocker.pop_received_message().unwrap()).unwrap()
+    from_utf8(&*server.pop_received_message().unwrap()).unwrap()
 );
 
 // Check that no error has been raised by the mocked server
-assert!(tcp_server_mocker.pop_server_error().is_none());
+assert!(server.pop_server_error().is_none());
 ```
 
 Another example in UDP:
@@ -116,14 +116,14 @@ use std::net::UdpSocket;
 use std::str::from_utf8;
 
 // Mock a UDP server listening on port 35642. Note that the mock will only listen on the local interface.
-let udp_server_mocker = UdpServerMocker::new_with_port(35642).unwrap();
+let server = UdpServerMocker::new_with_port(35642).unwrap();
 
-// Create the UDP client to test
-let client_socket = UdpSocket::bind("127.0.0.1:34254").unwrap();
-client_socket.connect("127.0.0.1:35642").unwrap();
+// Create the UDP client to test at a random port
+let client_socket = UdpSocket::bind("127.0.0.1:0").unwrap();
+client_socket.connect(server.socket_address()).unwrap();
 
 // Mocked server behavior
-udp_server_mocker.add_mock_instructions(vec![
+server.add_mock_instructions(vec![
     // The mocked server will first wait for the client to send a message, with max size = 32 bytes
     ReceiveMessageWithMaxSize(32),
     // Then it will send a message to the client
@@ -159,7 +159,7 @@ assert_eq!("hello from server", received_message);
 // Check that the mocked server received the message sent by the client
 assert_eq!(
     "hello from client",
-    from_utf8(&*udp_server_mocker.pop_received_message().unwrap()).unwrap()
+    from_utf8(&*server.pop_received_message().unwrap()).unwrap()
 );
 
 let received_size = client_socket.recv(&mut buffer).unwrap();
@@ -170,7 +170,7 @@ let received_message = from_utf8(&buffer[..received_size]).unwrap();
 assert_eq!("hello2 from server", received_message);
 
 // Check that no error has been raised by the mocked server
-assert!(udp_server_mocker.pop_server_error().is_none());
+assert!(server.pop_server_error().is_none());
 ```
 
 ## Development

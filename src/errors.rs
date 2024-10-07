@@ -19,8 +19,8 @@ use crate::Instruction;
 #[derive(Debug, thiserror::Error)]
 #[allow(missing_docs)]
 pub enum ServerMockerError {
-    #[error("{}: Failed to bind TCP listener on port {0}: {1}", self.fatal_str())]
-    UnableToBindListener(u16, io::Error),
+    #[error("{}: Failed to bind TCP listener to {0}: {1}", self.fatal_str())]
+    UnableToBindListener(SocketAddr, io::Error),
     #[error("{}: Failed to get local address of a listener: {0}", self.fatal_str())]
     UnableToGetLocalAddress(io::Error),
     #[error("{}: Failed to accept incoming connection on {0}: {1}", self.fatal_str())]

@@ -14,10 +14,10 @@ use socket_server_mocker::{ServerMocker, TcpServerMocker};
 #[test]
 fn postgres_insert_mock() {
     // Mock PostgreSQL server on a port 54321 (default PostgresSQL port is 5432)
-    let postgres_server_mocker = TcpServerMocker::new_with_port(54321).unwrap();
+    let server = TcpServerMocker::new_with_port(54321).unwrap();
 
     // Add mock binary messages corresponding to client connection and authentication
-    postgres_server_mocker
+    server
         .add_mock_instructions(vec![
             ReceiveMessage,
             SendMessage(b"R\x00\x00\x00\x0c\x00\x00\x00\x05\x1cS\xa5\xf3".into()),
@@ -44,14 +44,14 @@ fn postgres_insert_mock() {
     // Check connection message sent by the client to mock server is correct
     assert_eq!(
         b"\x00\x00\x00A\x00\x03\x00\x00client_encoding\x00UTF8\x00user\x00admin\x00database\x00mockeddatabase\x00\x00",
-        postgres_server_mocker.pop_received_message().unwrap().as_slice()
+        server.pop_received_message().unwrap().as_slice()
     );
 
     // Cannot verify the authentication message sent by the client to mock server because it contains a random salt
-    postgres_server_mocker.pop_received_message().unwrap();
+    server.pop_received_message().unwrap();
 
     // Add mock instructions corresponding to the client INSERT query
-    postgres_server_mocker
+    server
         .add_mock_instructions(vec![
             ReceiveMessage,
             SendMessage(b"1\x00\x00\x00\x04t\x00\x00\x00\x0e\x00\x02\x00\x00\x04\x13\x00\x00\x04\x13n\x00\x00\x00\x04Z\x00\x00\x00\x05I".into()),
@@ -69,16 +69,16 @@ fn postgres_insert_mock() {
         .unwrap();
 
     // Check that no error has been raised by the mocked server
-    assert!(postgres_server_mocker.pop_server_error().is_none());
+    assert!(server.pop_server_error().is_none());
 }
 
 #[test]
 fn postgres_select_mock() {
     // Mock PostgreSQL server on a random free port (default PostgresSQL port is 5432)
-    let postgres_server_mocker = TcpServerMocker::new().unwrap();
+    let server = TcpServerMocker::new().unwrap();
 
     // Add mock binary messages corresponding to client connection and authentication
-    postgres_server_mocker
+    server
         .add_mock_instructions(vec![
             ReceiveMessage,
             SendMessage(b"R\x00\x00\x00\x0c\x00\x00\x00\x05\xb8(/\xf6".into()),
@@ -97,7 +97,7 @@ on\x00S\x00\x00\x00\x1aTimeZone\x00Europe/Paris\x00K\x00\x00\x00\x0c\x00\x00\x0a
     let mut client = Client::connect(
         &format!(
             "host=localhost user=admin password=password dbname=mockeddatabase port={}",
-            postgres_server_mocker.port()
+            server.port()
         ),
         NoTls,
     )
@@ -106,14 +106,14 @@ on\x00S\x00\x00\x00\x1aTimeZone\x00Europe/Paris\x00K\x00\x00\x00\x0c\x00\x00\x0a
     // Check connection message sent by the client to mock server is correct
     assert_eq!(
         b"\x00\x00\x00A\x00\x03\x00\x00client_encoding\x00UTF8\x00user\x00admin\x00database\x00mockeddatabase\x00\x00",
-        postgres_server_mocker.pop_received_message().unwrap().as_slice()
+        server.pop_received_message().unwrap().as_slice()
     );
 
     // Cannot verify the authentication message sent by the client to mock server because it contains a random salt
-    postgres_server_mocker.pop_received_message().unwrap();
+    server.pop_received_message().unwrap();
 
     // Add mock instructions corresponding to the client SELECT query
-    postgres_server_mocker
+    server
         .add_mock_instructions(vec![
             ReceiveMessage,
             SendMessage(b"1\x00\x00\x00\x04t\x00\x00\x00\x06\x00\x00T\x00\x00\x00K\x00\x03id\x00\x00\x00@\x0a\x00\x01\x00\x00\x00\x17\x00\x04\xff\xff\xff\xff\x00\x00data1\x00\x00\x00@\x0a\x00\x02\x00\x00\x04\x13\xff\xff\x00\x00\x00\x36\x00\x00data2\x00\x00\x00@\x0a\x00\x03\x00\x00\x04\x13\xff\xff\x00\x00\x006\x00\x00Z\x00\x00\x00\x05I".into()),
@@ -132,5 +132,5 @@ on\x00S\x00\x00\x00\x1aTimeZone\x00Europe/Paris\x00K\x00\x00\x00\x0c\x00\x00\x0a
     assert_eq!("test2", rows[0].get::<_, String>("data2"));
 
     // Check that no error has been raised by the mocked server
-    assert!(postgres_server_mocker.pop_server_error().is_none());
+    assert!(server.pop_server_error().is_none());
 }

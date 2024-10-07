@@ -7,11 +7,11 @@ use socket_server_mocker::{ServerMocker, TcpServerMocker};
 
 #[test]
 fn test_smtp_mock() {
-    // Create a SMTP TCP server mocker listening on port 2525 (SMTP default port is 25)
-    let smtp_server_mocker = TcpServerMocker::new_with_port(2525).unwrap();
+    // Create an SMTP TCP server mocker listening on port 2525 (SMTP default port is 25)
+    let server = TcpServerMocker::new_with_port(2525).unwrap();
 
     // Mocked server behavior
-    smtp_server_mocker.add_mock_instructions(vec![
+    server.add_mock_instructions(vec![
         SendMessage(b"220 smtp.localhost.mock ESMTP Mocker\r\n".to_vec()),
         ReceiveMessage,
         SendMessage(b"250-smtp.localhost.mock\r\n250-PIPELINING\r\n250-SIZE 20971520\r\n250-ETRN\r\n250-STARTTLS\r\n250-ENHANCEDSTATUSCODES\r\n250 8BITMIME\r\n".to_vec()),
@@ -47,41 +47,28 @@ fn test_smtp_mock() {
     let mailer = SmtpTransport::relay("127.0.0.1")
         .unwrap()
         .tls(Tls::None)
-        .port(smtp_server_mocker.port())
+        .port(server.port())
         .timeout(Some(Duration::from_secs(1)))
         .build();
     // Send the email
     mailer.send(&email_builder).unwrap();
 
     // Check that the server received the expected SMTP message
-    assert_eq!(
-        b"EHLO ",
-        &smtp_server_mocker.pop_received_message().unwrap()[..5]
-    );
+    assert_eq!(b"EHLO ", &server.pop_received_message().unwrap()[..5]);
     assert_eq!(
         b"MAIL FROM:<alice.dupont@localhost.mock>\r\n",
-        smtp_server_mocker
-            .pop_received_message()
-            .unwrap()
-            .as_slice()
+        server.pop_received_message().unwrap().as_slice()
     );
     assert_eq!(
         b"RCPT TO:<bob.dupond@localhost.mock>\r\n",
-        smtp_server_mocker
-            .pop_received_message()
-            .unwrap()
-            .as_slice()
+        server.pop_received_message().unwrap().as_slice()
     );
     assert_eq!(
         b"DATA\r\n",
-        smtp_server_mocker
-            .pop_received_message()
-            .unwrap()
-            .as_slice()
+        server.pop_received_message().unwrap().as_slice()
     );
 
-    let mail_payload_str =
-        String::from_utf8(smtp_server_mocker.pop_received_message().unwrap()).unwrap();
+    let mail_payload_str = String::from_utf8(server.pop_received_message().unwrap()).unwrap();
     let mut mail_payload_lines = mail_payload_str.lines();
 
     // Check that the server received the expected mail payload
@@ -112,5 +99,5 @@ fn test_smtp_mock() {
     assert_eq!(None, mail_payload_lines.next());
 
     // Check that no error has been raised by the mocked server
-    assert!(smtp_server_mocker.pop_server_error().is_none());
+    assert!(server.pop_server_error().is_none());
 }
