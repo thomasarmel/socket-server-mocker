@@ -21,7 +21,7 @@ Add the **socket-server-mocker** dependency to your `Cargo.toml` for testing com
 
 ```toml
 [dev-dependencies]
-socket-server-mocker = "0.4"
+socket-server-mocker = "0.5"
 ```
 
 ## Example
