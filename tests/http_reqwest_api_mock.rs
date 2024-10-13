@@ -1,12 +1,12 @@
 use std::str::from_utf8;
 
 use socket_server_mocker::Instruction::{ReceiveMessage, SendMessage, StopExchange};
-use socket_server_mocker::{ServerMocker, TcpServerMocker};
+use socket_server_mocker::ServerMocker;
 
 #[test]
 fn http_get() {
     // Mock HTTP server on a random free port
-    let server = TcpServerMocker::new().unwrap();
+    let server = ServerMocker::tcp().unwrap();
 
     server.add_mock_instructions(vec![
         // Wait for a HTTP GET request

@@ -11,10 +11,9 @@
 //! use std::str::from_utf8;
 //! use socket_server_mocker::ServerMocker;
 //! use socket_server_mocker::Instruction::{ReceiveMessage, SendMessage, StopExchange};
-//! use socket_server_mocker::TcpServerMocker;
 //!
 //! // Mock HTTP server on a random free port
-//! let server = TcpServerMocker::new().unwrap();
+//! let server = ServerMocker::tcp().unwrap();
 //!
 //! server.add_mock_instructions(vec![
 //!   // Wait for an HTTP GET request
@@ -60,5 +59,5 @@ mod udp_server;
 pub use errors::ServerMockerError;
 pub use instructions::Instruction;
 pub use server_mocker::ServerMocker;
-pub use tcp_server::{TcpMockerOptions, TcpServerMocker};
-pub use udp_server::{UdpMockerOptions, UdpServerMocker};
+pub use tcp_server::TcpMocker;
+pub use udp_server::UdpMocker;

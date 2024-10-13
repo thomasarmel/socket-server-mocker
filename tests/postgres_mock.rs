@@ -7,14 +7,16 @@
 //! Note: In modern `PostgreSQL`, the default authentication method is scram-sha-256.
 //! This hash method is secured by a nonce, so this mocked server uses md5 instead.
 
+use std::time::Duration;
+
 use postgres::{Client, NoTls};
-use socket_server_mocker::Instruction::{ReceiveMessage, SendMessage};
-use socket_server_mocker::{ServerMocker, TcpServerMocker};
+use socket_server_mocker::Instruction::{ReceiveMessage, SendMessage, StopExchange};
+use socket_server_mocker::ServerMocker;
 
 #[test]
 fn postgres_insert_mock() {
-    // Mock PostgreSQL server on a port 54321 (default PostgresSQL port is 5432)
-    let server = TcpServerMocker::new_with_port(54321).unwrap();
+    // Mock PostgreSQL server on a random port (default PostgresSQL port is 5432)
+    let server = ServerMocker::tcp().unwrap();
 
     // Add mock binary messages corresponding to client connection and authentication
     server
@@ -35,11 +37,17 @@ fn postgres_insert_mock() {
         .unwrap();
 
     // Connect to local mocked PostgreSQL server
-    let mut client = Client::connect(
-        "host=localhost user=admin password=password dbname=mockeddatabase port=54321",
-        NoTls,
-    )
-    .unwrap();
+    let mut client = Client::configure()
+        .host("localhost")
+        .user("admin")
+        .password("password")
+        .dbname("mockeddatabase")
+        .connect_timeout(Duration::from_secs(1))
+        .tcp_user_timeout(Duration::from_secs(1))
+        .keepalives(false)
+        .port(server.port())
+        .connect(NoTls)
+        .unwrap();
 
     // Check connection message sent by the client to mock server is correct
     assert_eq!(
@@ -57,6 +65,7 @@ fn postgres_insert_mock() {
             SendMessage(b"1\x00\x00\x00\x04t\x00\x00\x00\x0e\x00\x02\x00\x00\x04\x13\x00\x00\x04\x13n\x00\x00\x00\x04Z\x00\x00\x00\x05I".into()),
             ReceiveMessage,
             SendMessage(b"2\x00\x00\x00\x04C\x00\x00\x00\x0fINSERT 0 1\x00Z\x00\x00\x00\x05I".into()),
+            StopExchange, // PG client will attempt proper session closing which we are not simulating, so just stop early
         ])
         .unwrap();
 
@@ -75,7 +84,7 @@ fn postgres_insert_mock() {
 #[test]
 fn postgres_select_mock() {
     // Mock PostgreSQL server on a random free port (default PostgresSQL port is 5432)
-    let server = TcpServerMocker::new().unwrap();
+    let server = ServerMocker::tcp().unwrap();
 
     // Add mock binary messages corresponding to client connection and authentication
     server
@@ -94,14 +103,17 @@ on\x00S\x00\x00\x00\x1aTimeZone\x00Europe/Paris\x00K\x00\x00\x00\x0c\x00\x00\x0a
         .unwrap();
 
     // Connect to local mocked PostgreSQL server
-    let mut client = Client::connect(
-        &format!(
-            "host=localhost user=admin password=password dbname=mockeddatabase port={}",
-            server.port()
-        ),
-        NoTls,
-    )
-    .unwrap();
+    let mut client = Client::configure()
+        .host("localhost")
+        .user("admin")
+        .password("password")
+        .dbname("mockeddatabase")
+        .connect_timeout(Duration::from_secs(1))
+        .tcp_user_timeout(Duration::from_secs(1))
+        .keepalives(false)
+        .port(server.port())
+        .connect(NoTls)
+        .unwrap();
 
     // Check connection message sent by the client to mock server is correct
     assert_eq!(
@@ -119,6 +131,7 @@ on\x00S\x00\x00\x00\x1aTimeZone\x00Europe/Paris\x00K\x00\x00\x00\x0c\x00\x00\x0a
             SendMessage(b"1\x00\x00\x00\x04t\x00\x00\x00\x06\x00\x00T\x00\x00\x00K\x00\x03id\x00\x00\x00@\x0a\x00\x01\x00\x00\x00\x17\x00\x04\xff\xff\xff\xff\x00\x00data1\x00\x00\x00@\x0a\x00\x02\x00\x00\x04\x13\xff\xff\x00\x00\x00\x36\x00\x00data2\x00\x00\x00@\x0a\x00\x03\x00\x00\x04\x13\xff\xff\x00\x00\x006\x00\x00Z\x00\x00\x00\x05I".into()),
             ReceiveMessage,
             SendMessage(b"2\x00\x00\x00\x04D\x00\x00\x00 \x00\x03\x00\x00\x00\x04\x00\x00\x00\x01\x00\x00\x00\x05test1\x00\x00\x00\x05test2C\x00\x00\x00\x0dSELECT 1\x00Z\x00\x00\x00\x05I".into()),
+            StopExchange, // PG client will attempt proper session closing which we are not simulating, so just stop early
         ])
         .unwrap();
 

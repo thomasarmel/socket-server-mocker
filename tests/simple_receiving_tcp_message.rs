@@ -2,11 +2,11 @@ use std::io::Write;
 use std::net::TcpStream;
 
 use socket_server_mocker::Instruction::{ReceiveMessage, StopExchange};
-use socket_server_mocker::{ServerMocker, TcpServerMocker};
+use socket_server_mocker::ServerMocker;
 
 #[test]
 fn simple_receiving_message_test() {
-    let server = TcpServerMocker::new_with_port(1234).unwrap();
+    let server = ServerMocker::tcp_with_port(1234).unwrap();
     let mut client = TcpStream::connect(server.socket_address()).unwrap();
 
     server
